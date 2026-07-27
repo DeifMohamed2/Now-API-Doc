@@ -1,0 +1,104 @@
+---
+title: "GET /ping — Health Check and API Key Verification"
+sidebarTitle: "GET /ping"
+description: "Verify your API key is valid and active. Returns account info, company status, and enabled scopes. No scope required."
+---
+
+Use `GET /ping` as your first call whenever you set up a new integration or rotate an API key. It confirms your key is active, tells you which account it belongs to, and lists the scopes it carries — all without touching any merchant data.
+
+## Authentication
+
+Send your API key as a Bearer token or in the `X-Api-Key` header. No additional scope is needed.
+
+| Header | Value |
+|--------|-------|
+| `Authorization` | `Bearer nsk_live_YOUR_KEY` |
+| `X-Api-Key` | `nsk_live_YOUR_KEY` (alternative) |
+
+<Note>
+  When you include the `X-Merchant-Id` header, the response also contains an `activeMerchant` object with the resolved merchant's details. This is useful for confirming that a merchant ID you intend to use is correctly linked to your company account.
+</Note>
+
+## Request
+
+### Basic health check
+
+```bash
+curl "https://now.com.eg/api/public/v1/ping" \
+  -H "Authorization: Bearer nsk_live_YOUR_KEY"
+```
+
+### With merchant context
+
+```bash
+curl "https://now.com.eg/api/public/v1/ping" \
+  -H "Authorization: Bearer nsk_live_YOUR_KEY" \
+  -H "X-Merchant-Id: shop_123"
+```
+
+## Response
+
+### 200 — Success
+
+```json
+{
+  "success": true,
+  "data": {
+    "message": "Now Shipping Public API v1",
+    "account": {
+      "id": "66e0a1b2c3d4e5f6a7b8c9d0",
+      "name": "My Platform",
+      "brandName": "My Platform",
+      "businessAccountCode": "12345678",
+      "isCompanyAccount": true
+    },
+    "scopes": ["orders", "pickups", "merchants"],
+    "keyPrefix": "nsk_live"
+  }
+}
+```
+
+<ResponseField name="data.message" type="string">
+  API version string — always `"Now Shipping Public API v1"`.
+</ResponseField>
+
+<ResponseField name="data.account" type="object">
+  Details of the business account associated with this API key.
+
+  <Expandable title="account fields">
+    <ResponseField name="data.account.id" type="string">
+      MongoDB `_id` of the business account.
+    </ResponseField>
+    <ResponseField name="data.account.name" type="string">
+      Full account name.
+    </ResponseField>
+    <ResponseField name="data.account.brandName" type="string">
+      Public-facing brand name.
+    </ResponseField>
+    <ResponseField name="data.account.businessAccountCode" type="string">
+      8-digit business code auto-assigned by Now Shipping.
+    </ResponseField>
+    <ResponseField name="data.account.isCompanyAccount" type="boolean">
+      `true` for multi-tenant company integrators. Company keys must send `X-Merchant-Id` on all order and pickup requests.
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+<ResponseField name="data.scopes" type="string[]">
+  Scopes enabled on this key — any combination of `orders`, `pickups`, and `merchants`.
+</ResponseField>
+
+<ResponseField name="data.keyPrefix" type="string">
+  Key prefix, always `nsk_live` for production keys.
+</ResponseField>
+
+## Errors
+
+| Status | Code | Cause |
+|--------|------|-------|
+| `401` | `UNAUTHORIZED` | API key is missing, malformed, or revoked. |
+| `403` | `ACCOUNT_REMOVED` | The business account associated with this key has been deleted. |
+
+<Tip>
+  Run `GET /ping` as a startup check in your service. If it returns `401`, stop immediately and alert your team — do not proceed to create orders with an invalid key.
+</Tip>

@@ -1,0 +1,81 @@
+---
+title: "POST /pickups/calculate-fee — Preview Pickup Fee"
+sidebarTitle: "POST /calculate-fee"
+description: "Preview the pickup fee before scheduling. Pass numberOfOrders to get an accurate estimate. Returns EGP amount — never send this in pickup create requests."
+---
+
+Use this endpoint to preview the pickup fee before you commit to scheduling a courier pickup. The fee is computed server-side based on your account's pricing configuration and the expected number of orders. Use the returned value for display purposes only — **never pass fee values back in `POST /pickups` or `PUT /pickups/{pickupNumber}`**.
+
+<Warning>
+  Never send `pickupFees`, `fee`, or `amountOfFees` in create or update requests. Pickup fees are always computed server-side and are ignored if included.
+</Warning>
+
+## Authentication
+
+All requests require a valid API key. Company account keys must also include the `X-Merchant-Id` header on every pickup request.
+
+```http
+Authorization: Bearer nsk_live_YOUR_KEY
+X-Merchant-Id: shop_123
+```
+
+<Note>
+  `X-Merchant-Id` accepts your `businessAccountCode` (8-digit), `externalMerchantId`, or MongoDB `_id`. Single-business keys do not require this header.
+</Note>
+
+## Request body
+
+<ParamField body="numberOfOrders" type="number">
+  Expected order count for the pickup. Affects the fee calculation — provide an accurate estimate for the best result.
+</ParamField>
+
+<ParamField body="pickupAddressId" type="string">
+  Your merchant pickup address ID. When omitted, the fee is calculated against your default pickup address.
+</ParamField>
+
+## Example request
+
+```bash
+curl -X POST "https://now.com.eg/api/public/v1/pickups/calculate-fee" \
+  -H "Authorization: Bearer nsk_live_YOUR_KEY" \
+  -H "X-Merchant-Id: shop_123" \
+  -H "Content-Type: application/json" \
+  -d '{ "numberOfOrders": 10 }'
+```
+
+## Response
+
+A successful request returns HTTP `200` with a `fee` in EGP and a reminder note.
+
+<ResponseField name="success" type="boolean">
+  `true` on success.
+</ResponseField>
+
+<ResponseField name="data" type="object">
+  <Expandable title="data fields">
+    <ResponseField name="fee" type="number">
+      Estimated pickup fee in EGP.
+    </ResponseField>
+    <ResponseField name="currency" type="string">
+      Always `"EGP"`.
+    </ResponseField>
+    <ResponseField name="note" type="string">
+      Reminder that pickup fees are server-computed and must not be sent in create or update requests.
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+```json
+{
+  "success": true,
+  "data": {
+    "fee": 50,
+    "currency": "EGP",
+    "note": "Pickup fees are computed by Now Shipping. Never send pickupFees in create/update requests."
+  }
+}
+```
+
+<Tip>
+  Call this endpoint before your checkout or scheduling UI renders the fee to the merchant — it keeps the displayed amount in sync with what Now Shipping will actually charge.
+</Tip>

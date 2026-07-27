@@ -1,0 +1,132 @@
+---
+title: "GET /orders/{orderNumber} — Get Order Details"
+sidebarTitle: "GET /orders/{n}"
+description: "Retrieve full order details by order number, including status labels, tracking stages, and pickup address information."
+---
+
+Use this endpoint to retrieve the complete details of a single order by its 6-digit order number. The response includes the current status with human-readable labels, all tracking stages the order has passed through, and the merchant's pickup address information.
+
+## Authentication
+
+| Requirement | Value |
+|-------------|-------|
+| API key | Required (`Authorization: Bearer nsk_live_...`) |
+| Scope | `orders` |
+| `X-Merchant-Id` | Required for company keys |
+
+## Path parameter
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `orderNumber` | string | The 6-digit order number returned in the `orderNumber` field when the order was created. |
+
+<Note>
+  Use the `orderNumber` (e.g. `482917`) for this endpoint — not the MongoDB `orderId`. You receive the `orderNumber` in the `POST /orders` response.
+</Note>
+
+## Request
+
+```bash
+curl "https://now.com.eg/api/public/v1/orders/482917" \
+  -H "Authorization: Bearer nsk_live_YOUR_KEY" \
+  -H "X-Merchant-Id: shop_123"
+```
+
+## Response
+
+### 200 — Order found
+
+The response contains a full order object including all customer details, status labels, tracking stages, and the associated merchant pickup address.
+
+```json
+{
+  "success": true,
+  "data": {
+    "order": {
+      "orderId": "66f1a2b3c4d5e6f7a8b9c0d2",
+      "orderNumber": "482917",
+      "orderStatus": "new",
+      "statusCategory": "new",
+      "statusLabel": "New Order",
+      "orderFees": 120,
+      "orderDate": "2026-07-26T12:00:00.000Z",
+      "orderType": "Deliver",
+      "isExpressShipping": false,
+      "amountType": "COD",
+      "amount": 500,
+      "referralNumber": "ORDER-1001",
+      "Notes": "Leave at door",
+      "customer": {
+        "fullName": "Ahmed Hassan",
+        "phoneNumber": "01012345678",
+        "government": "Cairo",
+        "zone": "Nasr City - ElHay 06 (Nasr City)",
+        "address": "15 Nile Street"
+      },
+      "productDescription": "T-shirt x2",
+      "numberOfItems": 2,
+      "trackingStages": [
+        {
+          "status": "new",
+          "label": "New Order",
+          "timestamp": "2026-07-26T12:00:00.000Z"
+        }
+      ],
+      "pickupAddress": {
+        "id": "66e0a1b2c3d4e5f6a7b8c9d0",
+        "city": "Cairo",
+        "zone": "Nasr City - ElHay 06 (Nasr City)",
+        "addressDetails": "12 Street, Building 4"
+      }
+    }
+  }
+}
+```
+
+<ResponseField name="data.order.orderId" type="string">
+  MongoDB `_id` — use this as the path parameter for update, cancel, and delete requests.
+</ResponseField>
+
+<ResponseField name="data.order.orderNumber" type="string">
+  6-digit display number — use this for get and AWB requests.
+</ResponseField>
+
+<ResponseField name="data.order.orderStatus" type="string">
+  Current machine-readable status string (e.g. `new`, `inProgress`, `delivered`).
+</ResponseField>
+
+<ResponseField name="data.order.statusLabel" type="string">
+  Human-readable label for the current status.
+</ResponseField>
+
+<ResponseField name="data.order.orderFees" type="number">
+  Server-computed shipping fee in EGP.
+</ResponseField>
+
+<ResponseField name="data.order.trackingStages" type="array">
+  <Expandable title="Tracking stage fields">
+    <ResponseField name="status" type="string">
+      Machine-readable status at this stage.
+    </ResponseField>
+    <ResponseField name="label" type="string">
+      Human-readable label for this stage.
+    </ResponseField>
+    <ResponseField name="timestamp" type="string">
+      ISO 8601 timestamp of when this stage was recorded.
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+<ResponseField name="data.order.pickupAddress" type="object">
+  The merchant pickup address associated with this order.
+</ResponseField>
+
+## Error responses
+
+| HTTP status | Code | Cause |
+|-------------|------|-------|
+| `401` | `UNAUTHORIZED` | API key is missing, invalid, or revoked. |
+| `403` | `SCOPE_DENIED` | API key does not have the `orders` scope. |
+| `403` | `MERCHANT_REQUIRED` | Company key used without `X-Merchant-Id`. |
+| `403` | `MERCHANT_NOT_FOUND` | The merchant ID in `X-Merchant-Id` is not linked to your company. |
+| `404` | `NOT_FOUND` | No order with the given `orderNumber` was found. |

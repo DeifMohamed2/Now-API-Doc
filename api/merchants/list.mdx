@@ -1,0 +1,142 @@
+---
+title: "GET /merchants — List Merchant Sub-Accounts"
+sidebarTitle: "GET /merchants"
+description: "List all merchant sub-accounts under your company. Supports pagination and full-text search across name, email, phone, and IDs."
+---
+
+`GET /merchants` returns a paginated list of every merchant sub-account linked to your company. Use the `search` parameter to quickly look up a specific merchant by name, email, phone number, brand name, `businessAccountCode`, or `externalMerchantId` — handy for resolving a merchant before placing an order or checking onboarding status in bulk.
+
+## Requirements
+
+- **Account type:** Company account only.
+- **Scope:** `merchants`
+
+## Authentication
+
+| Header | Value |
+|--------|-------|
+| `Authorization` | `Bearer nsk_live_YOUR_KEY` |
+
+## Query parameters
+
+<ParamField query="page" type="integer">
+  Page number to return. Defaults to `1`.
+</ParamField>
+
+<ParamField query="limit" type="integer">
+  Number of merchants per page. Defaults to `50`.
+</ParamField>
+
+<ParamField query="search" type="string">
+  Full-text search across `name`, `email`, `phoneNumber`, `brandName`, `businessAccountCode`, and `externalMerchantId`. Partial matches are supported.
+</ParamField>
+
+## Request
+
+```bash
+curl "https://now.com.eg/api/public/v1/merchants?page=1&limit=20&search=acme" \
+  -H "Authorization: Bearer nsk_live_YOUR_KEY"
+```
+
+## Response
+
+### 200 — Success
+
+```json
+{
+  "success": true,
+  "data": {
+    "merchants": [
+      {
+        "id": "66f1a2b3c4d5e6f7a8b9c0d1",
+        "businessAccountCode": "48291736",
+        "name": "Acme Store",
+        "brandName": "Acme",
+        "email": "owner@acme.com",
+        "phoneNumber": "01000000000",
+        "externalMerchantId": "shop_123",
+        "isCompleted": true,
+        "isVerified": true,
+        "createdAt": "2026-07-26T15:00:00.000Z"
+      }
+    ],
+    "pagination": {
+      "currentPage": 1,
+      "totalPages": 1,
+      "totalCount": 1,
+      "hasNext": false,
+      "hasPrev": false
+    }
+  }
+}
+```
+
+<ResponseField name="data.merchants" type="array">
+  Array of merchant objects for the current page.
+
+  <Expandable title="merchant object fields">
+    <ResponseField name="id" type="string">
+      MongoDB `_id` of the merchant account.
+    </ResponseField>
+    <ResponseField name="businessAccountCode" type="string">
+      8-digit code — the primary value to pass as `X-Merchant-Id`.
+    </ResponseField>
+    <ResponseField name="name" type="string">
+      Merchant owner or business name.
+    </ResponseField>
+    <ResponseField name="brandName" type="string">
+      Public-facing brand name.
+    </ResponseField>
+    <ResponseField name="email" type="string">
+      Contact email address.
+    </ResponseField>
+    <ResponseField name="phoneNumber" type="string">
+      Contact phone number.
+    </ResponseField>
+    <ResponseField name="externalMerchantId" type="string">
+      Your platform's shop ID, if provided at onboarding.
+    </ResponseField>
+    <ResponseField name="isCompleted" type="boolean">
+      `true` when the merchant profile is fully complete.
+    </ResponseField>
+    <ResponseField name="isVerified" type="boolean">
+      `true` when the account is verified and ready to ship.
+    </ResponseField>
+    <ResponseField name="createdAt" type="string">
+      ISO 8601 timestamp of when the account was created.
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+<ResponseField name="data.pagination" type="object">
+  Pagination metadata for the current result set.
+
+  <Expandable title="pagination fields">
+    <ResponseField name="currentPage" type="integer">
+      The page number returned in this response.
+    </ResponseField>
+    <ResponseField name="totalPages" type="integer">
+      Total number of pages available.
+    </ResponseField>
+    <ResponseField name="totalCount" type="integer">
+      Total number of merchants matching the query.
+    </ResponseField>
+    <ResponseField name="hasNext" type="boolean">
+      `true` if there is a next page.
+    </ResponseField>
+    <ResponseField name="hasPrev" type="boolean">
+      `true` if there is a previous page.
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+## Errors
+
+| Status | Code | Cause |
+|--------|------|-------|
+| `401` | `UNAUTHORIZED` | API key is missing or invalid. |
+| `403` | `FORBIDDEN` | Key does not belong to a company account, or `SCOPE_DENIED` if the `merchants` scope is missing. |
+
+<Tip>
+  Use `search` with your `externalMerchantId` to check whether a merchant was already onboarded before calling `POST /merchants`. This lets you implement idempotent onboarding without catching `409` errors.
+</Tip>

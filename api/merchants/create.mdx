@@ -1,0 +1,163 @@
+---
+title: "POST /merchants — Onboard a Merchant Sub-Account"
+sidebarTitle: "POST /merchants"
+description: "Create a ready-to-ship Now Shipping merchant sub-account in one API call. Returns businessAccountCode for immediate use as X-Merchant-Id."
+---
+
+`POST /merchants` onboards a new merchant sub-account under your company in a single request. The created account is immediately verified and ready to ship — no manual admin review required. The `businessAccountCode` returned in the response is the value you pass as `X-Merchant-Id` on every subsequent order and pickup request for that merchant.
+
+<Warning>
+  Call `GET /delivery-zones` before building your onboarding form. The `pickupAddress.zone` field must be an exact `value` string from the zone catalog — any other string fails validation.
+</Warning>
+
+<Note>
+  Merchants created via the API do **not** receive Now Shipping dashboard login credentials. Your platform manages them entirely through the API.
+</Note>
+
+## Requirements
+
+- **Account type:** Company account only. Single-business keys return `403 FORBIDDEN`.
+- **Scope:** `merchants`
+- **Content-Type:** `application/json`
+
+## Request headers
+
+| Header | Value |
+|--------|-------|
+| `Authorization` | `Bearer nsk_live_YOUR_KEY` |
+| `Content-Type` | `application/json` |
+
+## Request body
+
+<ParamField body="name" type="string" required>
+  Merchant owner or business name.
+</ParamField>
+
+<ParamField body="email" type="string" required>
+  Contact email address. Must be globally unique across all Now Shipping accounts — if the email is already in use, you receive `409 MERCHANT_ALREADY_EXISTS`.
+</ParamField>
+
+<ParamField body="phone" type="string" required>
+  Egyptian mobile number, exactly 11 digits (e.g. `01012345678`).
+</ParamField>
+
+<ParamField body="brandName" type="string" required>
+  Public-facing brand name shown on shipping labels and customer communications.
+</ParamField>
+
+<ParamField body="externalMerchantId" type="string">
+  Your platform's own shop or merchant identifier (e.g. `shop_123`). Must be unique within your company. Once set, you can pass this value as `X-Merchant-Id` instead of `businessAccountCode`.
+</ParamField>
+
+<ParamField body="pickupAddress" type="object" required>
+  Default pickup address for this merchant. Couriers use this address when no override is specified on a pickup request.
+
+  <Expandable title="pickupAddress fields">
+    <ParamField body="pickupAddress.city" type="string" required>
+      Governorate of the pickup address. Must be one of: `Cairo`, `Giza`, `Qalyubia`.
+    </ParamField>
+    <ParamField body="pickupAddress.zone" type="string" required>
+      Exact zone `value` from `GET /delivery-zones` for the selected governorate. Free-text zone names are rejected.
+    </ParamField>
+    <ParamField body="pickupAddress.addressDetails" type="string" required>
+      Street address, building number, and floor (e.g. `"12 Tahrir Street, Building 4, Floor 2"`).
+    </ParamField>
+    <ParamField body="pickupAddress.pickupPhone" type="string" required>
+      11-digit contact phone number the courier calls on arrival.
+    </ParamField>
+    <ParamField body="pickupAddress.nearbyLandmark" type="string">
+      Optional landmark to help the courier locate the address (e.g. `"Near City Stars Mall"`).
+    </ParamField>
+    <ParamField body="pickupAddress.country" type="string">
+      Country of the pickup address. Defaults to `Egypt`.
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+## Example
+
+```bash
+curl -X POST "https://now.com.eg/api/public/v1/merchants" \
+  -H "Authorization: Bearer nsk_live_YOUR_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "Acme Store",
+    "email": "owner@acme.com",
+    "phone": "01000000000",
+    "brandName": "Acme",
+    "externalMerchantId": "shop_123",
+    "pickupAddress": {
+      "city": "Cairo",
+      "zone": "Nasr City - ElHay 06 (Nasr City)",
+      "addressDetails": "12 Street, Building 4",
+      "pickupPhone": "01000000000",
+      "nearbyLandmark": "Near City Center"
+    }
+  }'
+```
+
+## Response
+
+### 201 — Merchant created
+
+```json
+{
+  "success": true,
+  "data": {
+    "message": "Merchant onboarded successfully.",
+    "merchant": {
+      "id": "66f1a2b3c4d5e6f7a8b9c0d1",
+      "businessAccountCode": "48291736",
+      "name": "Acme Store",
+      "brandName": "Acme",
+      "email": "owner@acme.com",
+      "phoneNumber": "01000000000",
+      "externalMerchantId": "shop_123",
+      "isCompleted": true,
+      "isVerified": true,
+      "parentCompany": "66e0a1b2c3d4e5f6a7b8c9d0",
+      "createdAt": "2026-07-26T15:00:00.000Z"
+    }
+  }
+}
+```
+
+<ResponseField name="merchant.id" type="string">
+  MongoDB `_id` of the new merchant account.
+</ResponseField>
+
+<ResponseField name="merchant.businessAccountCode" type="string">
+  8-digit code assigned by Now Shipping. Use this as `X-Merchant-Id` on all order and pickup requests for this merchant.
+</ResponseField>
+
+<ResponseField name="merchant.externalMerchantId" type="string">
+  Your platform's shop ID, echoed back from the request. Also accepted as `X-Merchant-Id`.
+</ResponseField>
+
+<ResponseField name="merchant.isCompleted" type="boolean">
+  `true` — the merchant profile is fully complete.
+</ResponseField>
+
+<ResponseField name="merchant.isVerified" type="boolean">
+  `true` — the account is verified and ready to create orders immediately.
+</ResponseField>
+
+<ResponseField name="merchant.parentCompany" type="string">
+  MongoDB `_id` of the company account that owns this merchant sub-account.
+</ResponseField>
+
+<ResponseField name="merchant.createdAt" type="string">
+  ISO 8601 timestamp of account creation.
+</ResponseField>
+
+## Errors
+
+| Status | Code | Cause |
+|--------|------|-------|
+| `400` | `VALIDATION_ERROR` | A required field is missing or a field value is invalid (e.g. phone not 11 digits, zone not in catalog). |
+| `403` | `FORBIDDEN` | Your API key is not issued to a company account. |
+| `409` | `MERCHANT_ALREADY_EXISTS` | The `email`, `phone`, or `externalMerchantId` is already registered under another account. |
+
+<Note>
+  Save both `businessAccountCode` and `externalMerchantId` in your database immediately after a successful response. Use either value as `X-Merchant-Id` on every subsequent order and pickup request for this merchant. If you receive `409 MERCHANT_ALREADY_EXISTS`, call `GET /merchants/{merchantId}` with the conflicting ID to retrieve the existing record.
+</Note>

@@ -1,0 +1,117 @@
+---
+title: "GET /orders/{orderNumber}/awb — Download Shipping Label PDF"
+sidebarTitle: "GET /awb"
+description: "Download the AWB (Air Waybill) shipping label PDF for an order. Supports A4 and A5 sizes. Returns application/pdf binary."
+---
+
+Use this endpoint to download the printable Air Waybill (AWB) shipping label for an order. Print the label and affix it to the package before handing it to the courier. The response is a binary PDF — not JSON.
+
+## Authentication
+
+| Requirement | Value |
+|-------------|-------|
+| API key | Required (`Authorization: Bearer nsk_live_...`) |
+| Scope | `orders` |
+| `X-Merchant-Id` | Required for company keys |
+
+## Path parameter
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `orderNumber` | string | The 6-digit order number (e.g. `482917`) returned when the order was created. |
+
+## Query parameter
+
+<ParamField query="size" type="string">
+  Label paper size. Accepted values: `A4` or `A5`. Default: `A4`.
+</ParamField>
+
+<Tip>
+  Choose `A5` if you are printing on a dedicated thermal or label printer. Use `A4` for standard office printers.
+</Tip>
+
+## Request
+
+Use the `-o` flag in curl to save the binary response directly to a file:
+
+```bash
+curl "https://now.com.eg/api/public/v1/orders/482917/awb?size=A4" \
+  -H "Authorization: Bearer nsk_live_YOUR_KEY" \
+  -H "X-Merchant-Id: shop_123" \
+  -o awb-482917.pdf
+```
+
+To download an A5-sized label:
+
+```bash
+curl "https://now.com.eg/api/public/v1/orders/482917/awb?size=A5" \
+  -H "Authorization: Bearer nsk_live_YOUR_KEY" \
+  -H "X-Merchant-Id: shop_123" \
+  -o awb-482917-a5.pdf
+```
+
+## Response
+
+### 200 — PDF binary
+
+The response body is the raw PDF file. The `Content-Type` header is `application/pdf`.
+
+| Header | Value |
+|--------|-------|
+| `Content-Type` | `application/pdf` |
+| `Content-Disposition` | `attachment; filename="awb-{orderNumber}.pdf"` |
+
+<Note>
+  Do not attempt to parse the AWB response as JSON. Pass it directly to a file stream, a PDF renderer, or a print queue.
+</Note>
+
+### Handling the binary in code
+
+<Tabs>
+  <Tab title="Node.js">
+    ```javascript
+    const fs = require('fs');
+    const https = require('https');
+
+    const options = {
+      hostname: 'now.com.eg',
+      path: '/api/public/v1/orders/482917/awb?size=A4',
+      headers: {
+        'Authorization': 'Bearer nsk_live_YOUR_KEY',
+        'X-Merchant-Id': 'shop_123',
+      },
+    };
+
+    const file = fs.createWriteStream('awb-482917.pdf');
+    https.get(options, (res) => res.pipe(file));
+    ```
+  </Tab>
+
+  <Tab title="Python">
+    ```python
+    import requests
+
+    response = requests.get(
+        "https://now.com.eg/api/public/v1/orders/482917/awb",
+        params={"size": "A4"},
+        headers={
+            "Authorization": "Bearer nsk_live_YOUR_KEY",
+            "X-Merchant-Id": "shop_123",
+        },
+    )
+
+    with open("awb-482917.pdf", "wb") as f:
+        f.write(response.content)
+    ```
+  </Tab>
+</Tabs>
+
+## Error responses
+
+| HTTP status | Code | Cause |
+|-------------|------|-------|
+| `401` | `UNAUTHORIZED` | API key is missing, invalid, or revoked. |
+| `403` | `SCOPE_DENIED` | API key does not have the `orders` scope. |
+| `403` | `MERCHANT_REQUIRED` | Company key used without `X-Merchant-Id`. |
+| `403` | `MERCHANT_NOT_FOUND` | The merchant ID in `X-Merchant-Id` is not linked to your company. |
+| `404` | `NOT_FOUND` | No order with the given `orderNumber` was found. |

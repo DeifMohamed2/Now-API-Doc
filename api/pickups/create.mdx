@@ -1,0 +1,169 @@
+---
+title: "POST /pickups — Schedule a Courier Pickup"
+sidebarTitle: "POST /pickups"
+description: "Schedule a courier pickup for a merchant location. Requires a valid future pickupDate and numberOfOrders. Fees are computed server-side."
+---
+
+Use this endpoint to schedule a courier pickup at your merchant's location. You provide the date, expected order volume, and contact details — Now Shipping computes the pickup fee automatically. The response contains a `pickupNumber` you use in all subsequent get, update, cancel, and delete requests.
+
+<Warning>
+  Never send `pickupFees`, `fee`, or `amountOfFees` in this request. Pickup fees are always computed server-side; any fee fields in the request body are silently ignored.
+</Warning>
+
+## Authentication
+
+All requests require a valid API key. Company account keys must also include the `X-Merchant-Id` header.
+
+```http
+Authorization: Bearer nsk_live_YOUR_KEY
+X-Merchant-Id: shop_123
+```
+
+<Note>
+  `X-Merchant-Id` accepts your `businessAccountCode` (8-digit), `externalMerchantId`, or MongoDB `_id`. Single-business keys do not require this header.
+</Note>
+
+## Request body
+
+<ParamField body="numberOfOrders" type="number" required>
+  Expected order count for this pickup. Used to compute the pickup fee — provide your best estimate.
+</ParamField>
+
+<ParamField body="pickupDate" type="string" required>
+  Scheduled pickup date in `YYYY-MM-DD` format. Must be a valid future date per the Now Shipping pickup date policy.
+</ParamField>
+
+<ParamField body="phoneNumber" type="string" required>
+  Contact phone number for the courier. Must be an 11-digit Egyptian mobile number (e.g. `01012345678`).
+</ParamField>
+
+<ParamField body="isFragileItems" type="boolean">
+  Set to `true` if any items in this pickup are fragile. Defaults to `false`.
+</ParamField>
+
+<ParamField body="isLargeItems" type="boolean">
+  Set to `true` if any items are large or oversized. Defaults to `false`.
+</ParamField>
+
+<ParamField body="pickupNotes" type="string">
+  Free-text notes passed to the courier (e.g. `"Call before arrival"`, `"Ring doorbell twice"`).
+</ParamField>
+
+<ParamField body="pickupLocation" type="string">
+  Override the pickup location text displayed to the courier. Defaults to your registered address.
+</ParamField>
+
+<ParamField body="pickupAddressId" type="string">
+  Your merchant pickup address ID. When omitted, the pickup defaults to your main registered address.
+</ParamField>
+
+## Example request
+
+```bash
+curl -X POST "https://now.com.eg/api/public/v1/pickups" \
+  -H "Authorization: Bearer nsk_live_YOUR_KEY" \
+  -H "X-Merchant-Id: shop_123" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "numberOfOrders": 15,
+    "pickupDate": "2026-07-28",
+    "phoneNumber": "01012345678",
+    "isFragileItems": false,
+    "isLargeItems": false,
+    "pickupNotes": "Call before arrival"
+  }'
+```
+
+## Response
+
+A successful request returns HTTP `201` with the full pickup object.
+
+<ResponseField name="success" type="boolean">
+  `true` on success.
+</ResponseField>
+
+<ResponseField name="data.pickup" type="object">
+  <Expandable title="pickup fields">
+    <ResponseField name="pickupId" type="string">
+      MongoDB `_id` of the created pickup record.
+    </ResponseField>
+    <ResponseField name="pickupNumber" type="string">
+      6-digit pickup number. Use this value in all subsequent get, update, cancel, and delete requests.
+    </ResponseField>
+    <ResponseField name="pickupDate" type="string">
+      The scheduled pickup date in `YYYY-MM-DD` format.
+    </ResponseField>
+    <ResponseField name="picikupStatus" type="string">
+      Current pickup status (e.g. `new`). Note the field name is `picikupStatus` (as returned by the API).
+    </ResponseField>
+    <ResponseField name="statusCategory" type="string">
+      Status category for grouping (e.g. `new`).
+    </ResponseField>
+    <ResponseField name="statusLabel" type="string">
+      Human-readable status label (e.g. `"New"`).
+    </ResponseField>
+    <ResponseField name="numberOfOrders" type="number">
+      The expected order count you submitted.
+    </ResponseField>
+    <ResponseField name="pickupFees" type="number">
+      Server-computed pickup fee in EGP. This value is authoritative — do not send it back in update requests.
+    </ResponseField>
+    <ResponseField name="phoneNumber" type="string">
+      The contact phone number on record for this pickup.
+    </ResponseField>
+    <ResponseField name="isFragileItems" type="boolean">
+      Whether fragile items were flagged.
+    </ResponseField>
+    <ResponseField name="isLargeItems" type="boolean">
+      Whether large items were flagged.
+    </ResponseField>
+    <ResponseField name="pickupNotes" type="string">
+      Courier notes attached to this pickup.
+    </ResponseField>
+    <ResponseField name="createdAt" type="string">
+      ISO 8601 timestamp of when the pickup was created.
+    </ResponseField>
+    <ResponseField name="updatedAt" type="string">
+      ISO 8601 timestamp of the most recent update.
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+```json
+{
+  "success": true,
+  "data": {
+    "pickup": {
+      "pickupId": "66f1a2b3c4d5e6f7a8b9c0d3",
+      "pickupNumber": "482917",
+      "pickupDate": "2026-07-28",
+      "picikupStatus": "new",
+      "statusCategory": "new",
+      "statusLabel": "New",
+      "numberOfOrders": 15,
+      "pickupFees": 50,
+      "phoneNumber": "01012345678",
+      "isFragileItems": false,
+      "isLargeItems": false,
+      "pickupNotes": "Call before arrival",
+      "createdAt": "2026-07-26T12:00:00.000Z",
+      "updatedAt": "2026-07-26T12:00:00.000Z"
+    }
+  }
+}
+```
+
+## Response field reference
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `pickup.pickupId` | string | MongoDB `_id` — internal record identifier |
+| `pickup.pickupNumber` | string | 6-digit pickup number — use for get/update/cancel/delete |
+| `pickup.pickupDate` | string | Scheduled pickup date |
+| `pickup.picikupStatus` | string | Current status (e.g. `new`) |
+| `pickup.pickupFees` | number | Server-computed fee in EGP |
+| `pickup.numberOfOrders` | number | Expected order count as submitted |
+
+<Tip>
+  Save the `pickupNumber` from the response — it is the primary identifier for all follow-up operations. If you need to preview the fee before calling this endpoint, use [`POST /pickups/calculate-fee`](/api/pickups/calculate-fee) first.
+</Tip>

@@ -1,0 +1,94 @@
+---
+title: "API Key Scopes and Permissions"
+sidebarTitle: "Key Scopes"
+description: "Now Shipping API keys carry scopes that control which endpoint groups they can access. Missing scopes return 403 SCOPE_DENIED."
+---
+
+Every Now Shipping API key carries a set of **scopes** that determine which endpoint groups it can call. Scopes let you issue narrowly-privileged keys for specific integrations — for example, a key that can create orders but cannot manage merchants. When a request reaches an endpoint that requires a scope your key doesn't have, the API rejects it immediately with `403 SCOPE_DENIED`.
+
+## Available scopes
+
+| Scope | Endpoints covered |
+|-------|-------------------|
+| `orders` | `/orders/*` |
+| `pickups` | `/pickups/*` |
+| `merchants` | `/merchants/*` |
+
+New API keys default to all three scopes: `["orders", "pickups", "merchants"]`. You can verify the scopes on any key at any time by calling `GET /ping` — the response includes a `scopes` array alongside your account details.
+
+## Endpoints that require no scope
+
+The following endpoints are always accessible with any valid API key, regardless of scopes:
+
+- `GET /ping`
+- `GET /delivery-zones`
+- `POST /fees/calculate`
+- `GET /docs`
+- `GET /openapi.yaml`
+
+<Note>
+  `/ping` is the recommended way to perform health checks and validate that your key is active. It also returns your current scopes so you can confirm your key is configured correctly before going to production.
+</Note>
+
+## Backward compatibility
+
+If you have an existing API key that was issued with only the `orders` and `pickups` scopes, it can still access `/merchants` endpoints. This ensures older integrations are not broken if you start using the Merchants API without reissuing your key.
+
+## SCOPE_DENIED error
+
+When your key is missing a required scope, the API returns HTTP `403` with the following body:
+
+```json
+{
+  "success": false,
+  "error": {
+    "code": "SCOPE_DENIED",
+    "message": "This API key does not have the required scope for this endpoint."
+  }
+}
+```
+
+## Checking your key's scopes
+
+Call `GET /ping` to inspect the scopes attached to your current key:
+
+```bash
+curl https://now.com.eg/api/public/v1/ping \
+  -H "Authorization: Bearer nsk_live_YOUR_KEY"
+```
+
+The response includes a `scopes` array:
+
+```json
+{
+  "success": true,
+  "data": {
+    "message": "Now Shipping Public API v1",
+    "account": {
+      "name": "My Platform",
+      "businessAccountCode": "12345678",
+      "isCompanyAccount": true
+    },
+    "scopes": ["orders", "pickups", "merchants"],
+    "keyPrefix": "nsk_live"
+  }
+}
+```
+
+## How to fix a SCOPE_DENIED error
+
+<Warning>
+  API keys cannot be edited after creation. If your key is missing a required scope, you must create a new key with the correct scopes — you cannot add scopes to an existing key.
+</Warning>
+
+To create a new key with the required scopes:
+
+1. Log in to the Now Shipping admin panel.
+2. Navigate to **Admin → Business details → API Access**.
+3. Create a new API key and select the scopes you need.
+4. Copy the key immediately — it is shown **only once**.
+5. Replace the old key in your integration and revoke the old key.
+
+<Tip>
+  Always create keys with the minimal scopes your integration actually needs. If a key only creates orders and schedules pickups, omit the `merchants` scope so that key cannot be used to create or view merchant accounts.
+</Tip>

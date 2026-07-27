@@ -1,0 +1,129 @@
+---
+title: "GET /merchants/{merchantId} — Retrieve a Merchant by ID"
+sidebarTitle: "GET /merchants/{id}"
+description: "Fetch a single merchant sub-account by businessAccountCode, externalMerchantId, or MongoDB _id. Scope: merchants."
+---
+
+`GET /merchants/{merchantId}` returns the full profile of a single merchant sub-account linked to your company. You can identify the merchant using any of three values — `businessAccountCode`, `externalMerchantId`, or MongoDB `_id` — whichever is most convenient for your system.
+
+## Requirements
+
+- **Account type:** Company account only.
+- **Scope:** `merchants`
+
+## Authentication
+
+| Header | Value |
+|--------|-------|
+| `Authorization` | `Bearer nsk_live_YOUR_KEY` |
+
+## Path parameter
+
+<ParamField path="merchantId" type="string" required>
+  The merchant identifier. Accepts any of the following:
+
+  | Value | Example |
+  |-------|---------|
+  | `businessAccountCode` | `48291736` |
+  | `externalMerchantId` | `shop_123` |
+  | MongoDB `_id` | `66f1a2b3c4d5e6f7a8b9c0d1` |
+
+  The API resolves all three formats automatically — you do not need to specify which type you are sending.
+</ParamField>
+
+## Request
+
+### Fetch by externalMerchantId
+
+```bash
+curl "https://now.com.eg/api/public/v1/merchants/shop_123" \
+  -H "Authorization: Bearer nsk_live_YOUR_KEY"
+```
+
+### Fetch by businessAccountCode
+
+```bash
+curl "https://now.com.eg/api/public/v1/merchants/48291736" \
+  -H "Authorization: Bearer nsk_live_YOUR_KEY"
+```
+
+## Response
+
+### 200 — Success
+
+```json
+{
+  "success": true,
+  "data": {
+    "merchant": {
+      "id": "66f1a2b3c4d5e6f7a8b9c0d1",
+      "businessAccountCode": "48291736",
+      "name": "Acme Store",
+      "brandName": "Acme",
+      "email": "owner@acme.com",
+      "phoneNumber": "01000000000",
+      "externalMerchantId": "shop_123",
+      "isCompleted": true,
+      "isVerified": true,
+      "parentCompany": "66e0a1b2c3d4e5f6a7b8c9d0",
+      "createdAt": "2026-07-26T15:00:00.000Z"
+    }
+  }
+}
+```
+
+<ResponseField name="merchant.id" type="string">
+  MongoDB `_id` of the merchant account.
+</ResponseField>
+
+<ResponseField name="merchant.businessAccountCode" type="string">
+  8-digit code assigned by Now Shipping. Use this as `X-Merchant-Id` on order and pickup requests.
+</ResponseField>
+
+<ResponseField name="merchant.name" type="string">
+  Merchant owner or business name.
+</ResponseField>
+
+<ResponseField name="merchant.brandName" type="string">
+  Public-facing brand name.
+</ResponseField>
+
+<ResponseField name="merchant.email" type="string">
+  Contact email address.
+</ResponseField>
+
+<ResponseField name="merchant.phoneNumber" type="string">
+  Contact phone number.
+</ResponseField>
+
+<ResponseField name="merchant.externalMerchantId" type="string">
+  Your platform's shop ID, as provided at onboarding.
+</ResponseField>
+
+<ResponseField name="merchant.isCompleted" type="boolean">
+  `true` when the merchant profile is fully complete.
+</ResponseField>
+
+<ResponseField name="merchant.isVerified" type="boolean">
+  `true` when the account is verified and ready to create shipments.
+</ResponseField>
+
+<ResponseField name="merchant.parentCompany" type="string">
+  MongoDB `_id` of the company account that owns this merchant sub-account.
+</ResponseField>
+
+<ResponseField name="merchant.createdAt" type="string">
+  ISO 8601 timestamp of when the account was created.
+</ResponseField>
+
+## Errors
+
+| Status | Code | Cause |
+|--------|------|-------|
+| `401` | `UNAUTHORIZED` | API key is missing or invalid. |
+| `403` | `FORBIDDEN` | Key does not belong to a company account, or `SCOPE_DENIED` if the `merchants` scope is missing. |
+| `404` | `NOT_FOUND` | No merchant with the given `merchantId` exists under your company account. |
+
+<Note>
+  A `404` means either the ID doesn't exist or the merchant belongs to a different company. Use `GET /merchants` with a `search` query to browse your linked accounts, or call `POST /merchants` to onboard the merchant if they haven't been created yet.
+</Note>

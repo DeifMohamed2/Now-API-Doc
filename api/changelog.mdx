@@ -1,0 +1,78 @@
+---
+title: "Now Shipping API Changelog — Version History"
+sidebarTitle: "Changelog"
+description: "Release notes for the Now Shipping Public API. Version 1.0 launched July 2026 with full multi-tenant support, CRUD for orders and pickups, and AWB PDF."
+---
+
+This changelog tracks all releases of the Now Shipping Public API. Future breaking changes will be released under `/api/public/v2` — v1 remains fully supported during any migration period, so your existing integration will not break when v2 ships.
+
+---
+
+## v1.0 — July 2026
+
+Initial public release of the Now Shipping Public API v1.
+
+**Base URL:** `https://now.com.eg/api/public/v1`  
+**Coverage area:** Cairo, Giza, Qalyubia (Greater Cairo)  
+**Currency:** EGP
+
+### Multi-tenant company integrator model
+
+Introduced the company account architecture: one API key manages all merchant sub-accounts on your platform. Pass `X-Merchant-Id` per request to route orders, pickups, and fee previews to the correct merchant. Accepted values for `X-Merchant-Id` include `businessAccountCode`, `externalMerchantId`, or MongoDB `_id`.
+
+### Merchant onboarding
+
+`POST /merchants` creates a fully ready-to-ship merchant sub-account in a single API call — no admin setup required. The created account is immediately marked `isVerified: true` and `isCompleted: true` with a default pickup address. Use `GET /merchants` and `GET /merchants/{id}` to list and retrieve merchants by any identifier.
+
+### Orders CRUD
+
+Full create, read, update, cancel, and delete lifecycle for three order types:
+
+- **Deliver** — standard outbound delivery with optional COD and express shipping
+- **Return** — inbound return linked to an original completed order
+- **Exchange** — combined delivery and return in one order
+
+### AWB PDF download
+
+`GET /orders/{orderNumber}/awb` returns a printable shipping label in `application/pdf` format. Pass `?size=A4` (default) or `?size=A5` to match your label printer.
+
+### Pickups CRUD
+
+Full create, read, update, cancel, and delete lifecycle for courier pickup requests. Update and delete are allowed while status is `new` or `pendingPickup`.
+
+### Fee preview
+
+- `POST /fees/calculate` — preview the shipping fee for an order before creating it. Pass `X-Merchant-Id` to apply merchant-specific pricing.
+- `POST /pickups/calculate-fee` — preview the pickup fee before scheduling.
+
+<Note>
+  Fees are always computed server-side from governorate, order type, express flag, and custom pricing rules. Never send `orderFees`, `pickupFees`, `fee`, `shippingFee`, or `amountOfFees` in create or update request bodies — those fields are ignored.
+</Note>
+
+### Delivery zone catalog
+
+`GET /delivery-zones` returns the authoritative list of governorates and zones. The endpoint supports `ETag` / `If-None-Match` caching — cache the response and refresh only when you receive a changed ETag. Always use `areas[].value` strings exactly as returned; free-text zone names are rejected.
+
+### Server-side fee computation
+
+Fees are computed by Now Shipping on every order and pickup create/update. The authoritative fee is returned in the response (`orderFees`, `pickupFees`) and is never accepted from the client.
+
+### API key scopes
+
+Fine-grained access control with three scopes: `orders`, `pickups`, and `merchants`. New keys default to all three. Keys with only `orders` and `pickups` retain backward-compatible access to `/merchants` endpoints.
+
+### externalMerchantId support
+
+Link each Now Shipping merchant to your platform's own shop ID at onboarding time. Pass `externalMerchantId` in `POST /merchants` and use it as `X-Merchant-Id` on every subsequent request — no need to store Now Shipping's internal IDs.
+
+### Zone validation
+
+All `zone` and `pickupAddress.zone` values are validated against the live delivery catalog on every request. Invalid zones return `400 VALIDATION_ERROR` with the message `Area / zone is not valid`.
+
+### Rate limiting
+
+120 requests per minute per API key. Requests beyond this limit return `429 RATE_LIMITED`. Implement exponential backoff in your retry logic.
+
+<Tip>
+  Cache `GET /delivery-zones` with ETag and reuse `businessAccountCode` values stored at merchant onboarding — both dramatically reduce your per-request API call count and keep you well within the rate limit.
+</Tip>

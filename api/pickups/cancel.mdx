@@ -1,0 +1,93 @@
+---
+title: "POST /pickups/{pickupNumber}/cancel — Cancel a Pickup"
+sidebarTitle: "POST /cancel"
+description: "Cancel a scheduled pickup by pickup number. Cancellation eligibility depends on current pickup status."
+---
+
+Use this endpoint to cancel a scheduled pickup before the courier arrives. Cancellation eligibility depends on the pickup's current status — if the pickup has progressed past a cancellable state, the API returns an error with the current status in the response details. You receive the `pickupNumber` in the response of [`POST /pickups`](/api/pickups/create).
+
+<Note>
+  If you want to permanently remove a pickup that is still in `new` or `pendingPickup` status, use [`DELETE /pickups/{pickupNumber}`](/api/pickups/delete) instead.
+</Note>
+
+## Authentication
+
+All requests require a valid API key. Company account keys must also include the `X-Merchant-Id` header.
+
+```http
+Authorization: Bearer nsk_live_YOUR_KEY
+X-Merchant-Id: shop_123
+```
+
+<Note>
+  `X-Merchant-Id` accepts your `businessAccountCode` (8-digit), `externalMerchantId`, or MongoDB `_id`. Single-business keys do not require this header.
+</Note>
+
+## Path parameter
+
+<ParamField path="pickupNumber" type="string" required>
+  The 6-digit pickup number returned when the pickup was created (e.g. `482917`).
+</ParamField>
+
+## Request body
+
+This endpoint does not require a request body.
+
+## Example request
+
+```bash
+curl -X POST "https://now.com.eg/api/public/v1/pickups/482917/cancel" \
+  -H "Authorization: Bearer nsk_live_YOUR_KEY" \
+  -H "X-Merchant-Id: shop_123"
+```
+
+## Response
+
+A successful cancellation returns HTTP `200`.
+
+<ResponseField name="success" type="boolean">
+  `true` on success.
+</ResponseField>
+
+<ResponseField name="data" type="object">
+  Confirmation details, including the updated pickup status.
+</ResponseField>
+
+```json
+{
+  "success": true,
+  "data": {
+    "message": "Pickup cancelled successfully.",
+    "pickupNumber": "482917"
+  }
+}
+```
+
+## Error responses
+
+| HTTP status | Error code | Description |
+|-------------|------------|-------------|
+| `400` | `VALIDATION_ERROR` | The pickup cannot be cancelled from its current status. The error `details` object includes `currentStatus`. |
+| `404` | `NOT_FOUND` | No pickup with this `pickupNumber` found under your account. |
+| `401` | `UNAUTHORIZED` | Missing or invalid API key. |
+| `403` | `MERCHANT_REQUIRED` | Company key used without `X-Merchant-Id`. |
+| `403` | `MERCHANT_NOT_FOUND` | The merchant in `X-Merchant-Id` is not linked to your company. |
+
+### Example error — not cancellable
+
+```json
+{
+  "success": false,
+  "error": {
+    "code": "VALIDATION_ERROR",
+    "message": "This pickup cannot be canceled from its current status.",
+    "details": {
+      "currentStatus": "pickedUp"
+    }
+  }
+}
+```
+
+<Tip>
+  Before cancelling, call [`GET /pickups/{pickupNumber}`](/api/pickups/get) to confirm the current status. If the pickup is still in `new` or `pendingPickup` and you want to remove it entirely, [`DELETE /pickups/{pickupNumber}`](/api/pickups/delete) is the cleaner option.
+</Tip>

@@ -1,0 +1,121 @@
+---
+title: "API Response Format and Envelope Structure"
+sidebarTitle: "Response Format"
+description: "Every Now Shipping API response uses a consistent JSON envelope with success, data, and error fields. Pagination is included on list endpoints."
+---
+
+Every response from the Now Shipping API uses the same JSON envelope, regardless of the endpoint or HTTP method. The envelope always contains a `success` boolean that tells you whether the request succeeded, plus either a `data` object (on success) or an `error` object (on failure). Checking `success` first is the recommended pattern for all response handling in your integration.
+
+## Success response
+
+A successful request returns HTTP `2xx` and a body shaped like this:
+
+```json
+{
+  "success": true,
+  "data": { }
+}
+```
+
+The contents of `data` vary by endpoint. For resource-creation endpoints (e.g. `POST /orders`), `data` contains the created object. For retrieval endpoints (e.g. `GET /orders/{orderNumber}`), it contains the full resource.
+
+<Note>
+  `success` is always a boolean. Check `success === true` before reading `data` — do not rely on the HTTP status code alone.
+</Note>
+
+## Paginated list responses
+
+List endpoints (e.g. `GET /orders`, `GET /pickups`, `GET /merchants`) include a `pagination` object nested inside `data`:
+
+```json
+{
+  "success": true,
+  "data": {
+    "orders": [],
+    "pagination": {
+      "currentPage": 1,
+      "totalPages": 5,
+      "totalCount": 100,
+      "hasNext": true,
+      "hasPrev": false
+    }
+  }
+}
+```
+
+### Pagination fields
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `currentPage` | integer | The page number returned in this response |
+| `totalPages` | integer | Total number of pages available |
+| `totalCount` | integer | Total number of records across all pages |
+| `hasNext` | boolean | `true` if a next page exists |
+| `hasPrev` | boolean | `true` if a previous page exists |
+
+Use the `page` and `limit` query parameters to navigate pages. The default page size varies by endpoint; check the individual endpoint reference for defaults and maximums.
+
+## Error response
+
+When a request fails, the API returns an appropriate `4xx` or `5xx` HTTP status and a body shaped like this:
+
+```json
+{
+  "success": false,
+  "error": {
+    "code": "VALIDATION_ERROR",
+    "message": "Human-readable description",
+    "details": { }
+  }
+}
+```
+
+### Error fields
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `code` | string | Machine-readable error identifier (e.g. `VALIDATION_ERROR`, `RATE_LIMITED`). Use this in your error-handling logic and when raising support tickets. |
+| `message` | string | Human-readable explanation of what went wrong. Suitable for internal logs; not intended for end-user display. |
+| `details` | object | Optional. Contains additional context about the failure — for example, a `currentStatus` field on cancel errors tells you the order's present state. |
+
+<Tip>
+  Log both `error.code` and `error.message` in your integration. When contacting Now Shipping support, including the `code` from the error body speeds up diagnosis significantly.
+</Tip>
+
+### Example: cancel conflict error
+
+Some errors include `details` to give you extra context for recovery:
+
+```json
+{
+  "success": false,
+  "error": {
+    "code": "FORBIDDEN",
+    "message": "This order cannot be canceled from its current status.",
+    "details": {
+      "currentStatus": "outForDelivery"
+    }
+  }
+}
+```
+
+### Example: validation error
+
+```json
+{
+  "success": false,
+  "error": {
+    "code": "VALIDATION_ERROR",
+    "message": "Area / zone is not valid.",
+    "details": {
+      "field": "zone"
+    }
+  }
+}
+```
+
+<Warning>
+  Zone values must be exact strings from `GET /delivery-zones`. Free-text zone names like `"Nasr City"` will fail validation — always build your address forms from the zone catalog.
+</Warning>
+
+For the complete list of error codes and their meanings, see the [Error Reference](/api/errors).

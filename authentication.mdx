@@ -1,0 +1,110 @@
+---
+title: "Authenticate with Now Shipping API"
+sidebarTitle: "Authentication"
+description: "All Now Shipping API requests require a valid API key. Pass it as a Bearer token or X-Api-Key header on every call."
+---
+
+Every request to the Now Shipping Public API must carry a valid API key. The key identifies your integration, enforces rate limits, and controls which endpoint groups you can access through scopes. The only exceptions are the interactive reference pages — `GET /api/public/v1/docs` and `GET /api/public/v1/openapi.yaml` — which are publicly accessible without a key.
+
+## Key format
+
+All API keys follow the format:
+
+```
+nsk_live_<random_string>
+```
+
+The `nsk_live_` prefix lets you distinguish an API key from other credentials at a glance and makes it straightforward to detect accidental exposure in logs or repositories.
+
+## Sending your key
+
+You have two ways to pass the key on each request. Both are equally valid — use whichever fits your HTTP client or SDK more naturally.
+
+**Option 1 — Authorization header (recommended):**
+
+```http
+Authorization: Bearer nsk_live_YOUR_KEY
+```
+
+**Option 2 — X-Api-Key header:**
+
+```http
+X-Api-Key: nsk_live_YOUR_KEY
+```
+
+Include one of these headers on **every** API request. Requests without a recognized key receive a `401 UNAUTHORIZED` response immediately.
+
+## How to get an API key
+
+A Now Shipping admin creates API keys through the dashboard: **Admin → Business details → API Access**.
+
+<Warning>
+The full `nsk_live_...` key string is displayed **exactly once** at the moment of creation. Now Shipping stores only a SHA-256 hash of the key — the raw value cannot be recovered after you close the creation dialog. Copy the key into your secrets manager immediately. If you lose it, you must revoke the old key and create a new one.
+</Warning>
+
+## Verify your key with /ping
+
+Use `GET /ping` to confirm your key is valid, inspect which scopes are attached, and verify the account identity your integration is operating under.
+
+```bash
+curl "https://now.com.eg/api/public/v1/ping" \
+  -H "Authorization: Bearer nsk_live_YOUR_KEY"
+```
+
+A successful `200` response looks like this:
+
+```json
+{
+  "success": true,
+  "data": {
+    "message": "Now Shipping Public API v1",
+    "account": {
+      "id": "66e0a1b2c3d4e5f6a7b8c9d0",
+      "name": "My Platform",
+      "brandName": "My Platform",
+      "businessAccountCode": "12345678",
+      "isCompanyAccount": true
+    },
+    "scopes": ["orders", "pickups", "merchants"],
+    "keyPrefix": "nsk_live"
+  }
+}
+```
+
+When you include an `X-Merchant-Id` header on the `/ping` request, the response also contains an `activeMerchant` object showing the resolved merchant sub-account — useful for debugging merchant ID resolution during development.
+
+## Authentication errors
+
+| HTTP Status | Error Code | Meaning |
+|---|---|---|
+| `401` | `UNAUTHORIZED` | No key provided, key format is invalid, or the key has been revoked |
+| `403` | `ACCOUNT_REMOVED` | The business account this key belongs to has been deleted |
+| `403` | `SCOPE_DENIED` | The key exists and is valid, but it lacks the scope required by this endpoint |
+
+Revoked keys return `401` regardless of which endpoint you call. If you receive `403 ACCOUNT_REMOVED`, contact your Now Shipping account manager — the underlying business account needs to be reinstated before any key from that account will work again.
+
+## API key scopes
+
+Each key is issued with a set of scopes that control which endpoint groups it can reach:
+
+| Scope | Endpoint group |
+|---|---|
+| `orders` | `/orders/*` |
+| `pickups` | `/pickups/*` |
+| `merchants` | `/merchants/*` |
+
+The endpoints `/ping`, `/delivery-zones`, `/fees/calculate`, `/docs`, and `/openapi.yaml` require no scope — only a valid key (except docs/spec which need no key at all).
+
+New keys default to all three scopes: `["orders", "pickups", "merchants"]`. A missing scope returns `403 SCOPE_DENIED`. See [API Key Scopes](/concepts/api-key-scopes) for the full scope reference and backward-compatibility rules.
+
+## Security best practices
+
+<Tip>
+Follow these practices to keep your integration secure:
+
+- **Use a secrets manager.** Store your API key in an environment variable or a dedicated secrets service (AWS Secrets Manager, HashiCorp Vault, etc.) — never hardcode it in source files.
+- **Never expose the key client-side.** API keys must only be used from your server-side backend. Do not bundle them into browser JavaScript, mobile apps, or any code that ships to end users.
+- **Use separate keys per environment.** Create distinct keys for development, staging, and production. This limits blast radius if a key leaks and lets you rotate environments independently.
+- **Rotate keys on suspected exposure.** If a key appears in a log file, a git commit, or an error report, revoke it immediately in the dashboard and issue a new one. Your integration should only need a few minutes of downtime to swap the value in your secrets store.
+- **Monitor for `401` spikes.** A sudden increase in `401` responses may indicate a key was revoked or rotated without updating your configuration.
+</Tip>

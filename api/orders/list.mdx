@@ -1,0 +1,151 @@
+---
+title: "GET /orders — List Orders with Filters and Pagination"
+sidebarTitle: "GET /orders"
+description: "List orders for your account or merchant. Filter by type, status, payment, and date range. Supports pagination and full-text search."
+---
+
+Use this endpoint to retrieve a paginated list of orders for your account or, for company integrators, for a specific merchant. You can narrow results by order type, status, payment method, date range, or a free-text search query.
+
+## Authentication
+
+| Requirement | Value |
+|-------------|-------|
+| API key | Required (`Authorization: Bearer nsk_live_...`) |
+| Scope | `orders` |
+| `X-Merchant-Id` | Required for company keys |
+
+## Query parameters
+
+<ParamField query="page" type="integer">
+  Page number to retrieve. Default: `1`.
+</ParamField>
+
+<ParamField query="limit" type="integer">
+  Number of results per page. Default: `50`.
+</ParamField>
+
+<ParamField query="orderType" type="string">
+  Filter by order type. Accepted values: `Deliver`, `Return`, `Exchange`, or `All`.
+</ParamField>
+
+<ParamField query="status" type="string">
+  Filter by a specific order status string (e.g. `new`, `inProgress`).
+</ParamField>
+
+<ParamField query="statusCategory" type="string">
+  Filter by status category group.
+</ParamField>
+
+<ParamField query="paymentType" type="string">
+  Filter by payment method. Accepted values: `COD`, `CD`, `NA`, or `All`.
+</ParamField>
+
+<ParamField query="dateFrom" type="string">
+  Start of the date range filter. ISO 8601 date format: `YYYY-MM-DD`.
+</ParamField>
+
+<ParamField query="dateTo" type="string">
+  End of the date range filter. ISO 8601 date format: `YYYY-MM-DD`.
+</ParamField>
+
+<ParamField query="search" type="string">
+  Full-text search across order number, customer name, customer phone, and product description.
+</ParamField>
+
+## Request
+
+```bash
+curl "https://now.com.eg/api/public/v1/orders?page=1&limit=20&status=new" \
+  -H "Authorization: Bearer nsk_live_YOUR_KEY" \
+  -H "X-Merchant-Id: shop_123"
+```
+
+### Filtering examples
+
+Filter by date range and order type:
+
+```bash
+curl "https://now.com.eg/api/public/v1/orders?orderType=Deliver&dateFrom=2026-07-01&dateTo=2026-07-31&page=1&limit=50" \
+  -H "Authorization: Bearer nsk_live_YOUR_KEY" \
+  -H "X-Merchant-Id: shop_123"
+```
+
+Search by customer phone:
+
+```bash
+curl "https://now.com.eg/api/public/v1/orders?search=01012345678" \
+  -H "Authorization: Bearer nsk_live_YOUR_KEY" \
+  -H "X-Merchant-Id: shop_123"
+```
+
+## Response
+
+### 200 — Orders list
+
+```json
+{
+  "success": true,
+  "data": {
+    "orders": [
+      {
+        "orderId": "66f1a2b3c4d5e6f7a8b9c0d2",
+        "orderNumber": "482917",
+        "orderStatus": "new",
+        "statusCategory": "new",
+        "orderFees": 120,
+        "orderDate": "2026-07-26T12:00:00.000Z",
+        "orderType": "Deliver",
+        "isExpressShipping": false,
+        "amountType": "COD",
+        "amount": 500,
+        "customer": {
+          "fullName": "Ahmed Hassan",
+          "phoneNumber": "01012345678",
+          "government": "Cairo",
+          "zone": "Nasr City - ElHay 06 (Nasr City)"
+        }
+      }
+    ],
+    "pagination": {
+      "currentPage": 1,
+      "totalPages": 5,
+      "totalCount": 100,
+      "hasNext": true,
+      "hasPrev": false
+    }
+  }
+}
+```
+
+<ResponseField name="data.orders" type="array">
+  Array of order summary objects. Each object contains the same fields as the create response.
+</ResponseField>
+
+<ResponseField name="data.pagination" type="object">
+  <Expandable title="Pagination fields">
+    <ResponseField name="currentPage" type="integer">
+      The page number returned.
+    </ResponseField>
+    <ResponseField name="totalPages" type="integer">
+      Total number of pages for the current query.
+    </ResponseField>
+    <ResponseField name="totalCount" type="integer">
+      Total number of matching orders.
+    </ResponseField>
+    <ResponseField name="hasNext" type="boolean">
+      `true` if there is a subsequent page.
+    </ResponseField>
+    <ResponseField name="hasPrev" type="boolean">
+      `true` if there is a previous page.
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+## Error responses
+
+| HTTP status | Code | Cause |
+|-------------|------|-------|
+| `401` | `UNAUTHORIZED` | API key is missing, invalid, or revoked. |
+| `403` | `SCOPE_DENIED` | API key does not have the `orders` scope. |
+| `403` | `MERCHANT_REQUIRED` | Company key used without `X-Merchant-Id`. |
+| `403` | `MERCHANT_NOT_FOUND` | The merchant ID in `X-Merchant-Id` is not linked to your company. |

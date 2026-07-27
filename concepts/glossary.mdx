@@ -1,0 +1,48 @@
+---
+title: "Glossary: Now Shipping API Terms and Concepts"
+sidebarTitle: "Glossary"
+description: "Definitions for key terms used throughout the Now Shipping API: businessAccountCode, AWB, zone catalog, company account, and more."
+---
+
+The following terms appear throughout the Now Shipping API documentation, request bodies, and response payloads. Use this page as a quick reference while you build your integration.
+
+## Account and identity terms
+
+| Term | Description |
+|------|-------------|
+| **Business account** | A Now Shipping merchant account with the role `Business`. Every entity that ships through Now Shipping has one. |
+| **Company account** | A business account flagged as `isCompanyAccount = true`. Represents a multi-tenant integrator platform — for example, an e-commerce SaaS or fulfilment aggregator. |
+| **Merchant sub-account** | A business account linked to a company via `parentCompany`. Each shop on your platform maps to one merchant sub-account. |
+| **API key** | Secret token in the format `nsk_live_...` that authenticates your integration. One key can serve all merchants under a company account. Only a SHA-256 hash is stored; the raw key is shown once at creation and cannot be recovered. |
+
+## Identifier terms
+
+| Term | Description |
+|------|-------------|
+| **businessAccountCode** | 8-digit numeric code auto-assigned to every business account (e.g. `48291736`). The primary identifier accepted by `X-Merchant-Id`. |
+| **externalMerchantId** | Your platform's own shop ID (e.g. `shop_123`), supplied when you onboard a merchant and stored for cross-referencing. Also accepted as `X-Merchant-Id`. |
+| **X-Merchant-Id** | Per-request HTTP header that identifies which merchant an order or pickup belongs to. Required on order and pickup routes when using a company API key. |
+| **orderNumber** | 6-digit display number assigned to every order by Now Shipping (e.g. `482917`). Use this to retrieve order details, download the AWB, or cancel the order. |
+| **pickupNumber** | 6-digit number assigned to every pickup by Now Shipping. Use this to retrieve, update, cancel, or delete a pickup. |
+| **referralNumber** | Your platform's own order or reference ID, passed at order creation and stored by Now Shipping for cross-referencing. Use it to map Now Shipping orders back to your internal records. |
+
+## Request and response terms
+
+| Term | Description |
+|------|-------------|
+| **Scope** | Permission attached to an API key that controls which endpoint groups it can call. Available scopes: `orders`, `pickups`, `merchants`. |
+| **AWB** | Air Waybill — the printable shipping label PDF for an order. Download it via `GET /orders/{orderNumber}/awb`. |
+| **Zone catalog** | The authoritative list of governorate and zone values returned by `GET /delivery-zones`. Zone strings in order requests must be exact values from this catalog — free text is rejected. |
+| **ETag** | HTTP response header returned by `GET /delivery-zones`. Send it as `If-None-Match` on subsequent requests; the API returns `304 Not Modified` when the catalog hasn't changed, saving bandwidth and counting against your rate limit. |
+
+## Order and shipping terms
+
+| Term | Description |
+|------|-------------|
+| **Express shipping** | A faster delivery option available for `Deliver` order types in supported zones. Toggle with the `isExpressShipping` flag at order creation. Cannot be changed more than 6 hours after the order is placed. |
+| **COD** | Cash on delivery — the customer pays the courier at the point of delivery. Enabled with `"COD": true` and an `amountCOD` value on the order. |
+| **CD** | Cash difference — the amount collected or refunded when an `Exchange` order involves a price difference between the outgoing and incoming item. |
+
+<Note>
+  Fees are always computed server-side. Never include `orderFees`, `pickupFees`, `shippingFee`, or similar fields in create or update request bodies — the API ignores or rejects them.
+</Note>

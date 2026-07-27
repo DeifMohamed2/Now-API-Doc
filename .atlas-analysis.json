@@ -1,21 +1,11 @@
 {
-  "$schema": "https://mintlify.com/docs.json",
-  "name": "Now Com",
+  "projectType": "api-service",
+  "projectName": "Now Shipping Public API",
+  "projectDescription": "A REST API for logistics and shipping integrations in Greater Cairo (Cairo, Giza, Qalyubia), enabling e-commerce platforms and SaaS companies to onboard merchants, create orders, download shipping labels, and schedule pickups.",
   "theme": "luma",
-  "logo": {
-    "light": "https://media.brand.dev/c43767ed-571b-4210-8906-0379d67b1fe7.png",
-    "dark": "https://media.brand.dev/c43767ed-571b-4210-8906-0379d67b1fe7.png"
-  },
-  "favicon": "https://media.brand.dev/35e738a5-9b99-4114-94ec-e03fa81bb8f5.png",
-  "colors": {
-    "primary": "#f49523"
-  },
-  "navbar": {
-    "primary": {
-      "type": "github",
-      "href": "https://github.com/DeifMohamed2/Now-Shipping"
-    }
-  },
+  "primaryColor": "#f49523",
+  "lightColor": null,
+  "darkColor": null,
   "navigation": {
     "tabs": [
       {
@@ -108,12 +98,38 @@
       }
     ]
   },
-  "fonts": {
-    "heading": {
-      "family": "Cairo"
-    },
-    "body": {
-      "family": "Tajawal"
-    }
-  }
+  "keyFeatures": [
+    "Merchant sub-account onboarding in a single API call",
+    "Multi-tenant company integrator model with X-Merchant-Id header",
+    "Server-side fee computation (never send fees in requests)",
+    "Delivery zone catalog with ETag caching",
+    "Order types: Deliver, Return, Exchange",
+    "AWB (shipping label) PDF download in A4 or A5",
+    "Pickup scheduling and fee preview",
+    "API key scopes (orders, pickups, merchants)",
+    "Rate limiting: 120 req/min per key",
+    "Coverage: Cairo, Giza, Qalyubia governorates"
+  ],
+  "publicApiSurface": [
+    "GET /ping",
+    "GET /delivery-zones",
+    "POST /fees/calculate",
+    "POST /merchants",
+    "GET /merchants",
+    "GET /merchants/{merchantId}",
+    "POST /orders",
+    "GET /orders",
+    "GET /orders/{orderNumber}",
+    "PUT /orders/{orderId}",
+    "POST /orders/{orderId}/cancel",
+    "DELETE /orders/{orderId}",
+    "GET /orders/{orderNumber}/awb",
+    "POST /pickups/calculate-fee",
+    "POST /pickups",
+    "GET /pickups",
+    "GET /pickups/{pickupNumber}",
+    "PUT /pickups/{pickupNumber}",
+    "POST /pickups/{pickupNumber}/cancel",
+    "DELETE /pickups/{pickupNumber}"
+  ]
 }

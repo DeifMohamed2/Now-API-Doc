@@ -1,0 +1,127 @@
+---
+title: "Error Reference: Codes, Status Codes, and Troubleshooting"
+sidebarTitle: "Errors"
+description: "Complete error code reference for the Now Shipping API. Includes HTTP status codes, machine-readable codes, validation messages, and troubleshooting steps."
+---
+
+Every Now Shipping API error follows a consistent JSON envelope. Use `error.code` to handle errors programmatically and `error.message` for user-facing display. The shape is identical across all endpoints, so you can build a single error-handling layer for your entire integration.
+
+## Error response shape
+
+```json
+{
+  "success": false,
+  "error": {
+    "code": "ERROR_CODE",
+    "message": "Human-readable description",
+    "details": {}
+  }
+}
+```
+
+<Note>
+  `details` is optional and may contain extra context. For example, a failed
+  cancel request includes `currentStatus` so you can branch your logic without
+  making an additional GET request.
+</Note>
+
+## HTTP status codes
+
+| Status | Meaning                                                               |
+| ------ | --------------------------------------------------------------------- |
+| 400    | Validation error — fix request body or parameters                     |
+| 401    | Missing, invalid, or revoked API key                                  |
+| 403    | Forbidden — account removed, scope denied, or action not allowed      |
+| 404    | Resource not found                                                    |
+| 409    | Conflict — duplicate merchant (email, phone, or externalMerchantId)   |
+| 429    | Rate limit exceeded (120 req/min per key)                             |
+| 500    | Internal server error                                                 |
+
+## Error codes
+
+| Code                      | HTTP | Description                                                              |
+| ------------------------- | ---- | ------------------------------------------------------------------------ |
+| `MERCHANT_REQUIRED`       | 400  | Company API key used without `X-Merchant-Id` on order/pickup routes      |
+| `MERCHANT_NOT_FOUND`      | 403  | Merchant ID not found or not linked to this company                      |
+| `MERCHANT_NOT_APPLICABLE` | 400  | `X-Merchant-Id` sent on a single-business API key                        |
+| `MERCHANT_ALREADY_EXISTS` | 409  | Duplicate email, phone, or `externalMerchantId` on merchant onboarding   |
+| `SCOPE_DENIED`            | 403  | API key missing required scope (`orders`, `pickups`, or `merchants`)     |
+| `UNAUTHORIZED`            | 401  | No API key or invalid/revoked key                                        |
+| `ACCOUNT_REMOVED`         | 403  | Business account was deleted                                             |
+| `FORBIDDEN`               | 403  | Action not permitted (e.g. edit a locked order)                          |
+| `NOT_FOUND`               | 404  | Order or resource not found                                              |
+| `VALIDATION_ERROR`        | 400  | Invalid or missing fields                                                |
+| `RATE_LIMITED`            | 429  | Too many requests                                                        |
+| `INTERNAL_ERROR`          | 500  | Unexpected server error                                                  |
+
+## Common validation messages
+
+The API returns plain-language messages alongside every `VALIDATION_ERROR`. Use the table below to map a message to its root cause and fix.
+
+| Message                                                                     | Cause                                                                            |
+| --------------------------------------------------------------------------- | -------------------------------------------------------------------------------- |
+| Government and orderType are required                                       | Fee calculation request is missing one or both required fields                   |
+| All customer info fields are required                                       | Order create/update is missing `fullName`, `phoneNumber`, `address`, `government`, or `zone` |
+| This order can no longer be deleted                                         | Only orders with status `new` can be deleted                                     |
+| This order cannot be canceled from its current status                       | Cancel eligibility depends on the order's current status                         |
+| Address and order details cannot be edited                                  | A courier has been assigned or the order has moved past the editable stage        |
+| Express shipping option cannot be changed for orders older than 6 hours     | The 6-hour window to toggle `isExpressShipping` has expired                      |
+| phone must be 11 digits                                                     | Merchant onboarding phone number is not an 11-digit Egyptian mobile number       |
+| pickupAddress.city is required                                              | Merchant onboarding request is missing the `pickupAddress.city` field            |
+| Area / zone is not valid                                                    | The `zone` value does not match any entry in `GET /delivery-zones`               |
+| Government must be one of: Cairo, Giza, Qalyubia                            | The `government` field contains an unrecognised governorate                       |
+| externalMerchantId is already registered                                    | That shop ID is already linked to another merchant — use a different ID or call `GET /merchants` |
+
+## Troubleshooting
+
+<AccordionGroup>
+
+<Accordion title="401 Unauthorized">
+  Verify that your request includes the correct header:
+
+  ```http
+  Authorization: Bearer nsk_live_YOUR_KEY
+  ```
+
+  Alternatively, you can pass the same value in `X-Api-Key`. Then confirm your key is marked **Active** in the Now Shipping admin under **Business details → API Access**. Revoked keys always return `401 UNAUTHORIZED`.
+</Accordion>
+
+<Accordion title="400 on order create">
+  The most common cause is an invalid or free-text zone name. Call `GET /delivery-zones` and build your address form from the `areas[].value` strings in that response — zone names like `"Nasr City"` are rejected; you must use the full catalog value (e.g. `"Nasr City - ElHay 06 (Nasr City)"`). Also confirm that `orderType` is exactly `Deliver`, `Return`, or `Exchange`.
+</Accordion>
+
+<Accordion title="403 on order update">
+  An order may no longer be editable once a courier has been assigned or the order moves past the editable stage. Fetch the order with `GET /orders/{orderNumber}` and check the response before attempting an update. If `canChangeAddress` is `false`, the address and order details are locked.
+</Accordion>
+
+<Accordion title="429 RATE_LIMITED">
+  You have exceeded 120 requests per minute on this API key. Reduce your request rate and implement exponential backoff when you receive a `429` response — start with a 1-second delay, double it on each retry, and cap at 30 seconds. Contact your Now Shipping account manager if you consistently need a higher limit.
+</Accordion>
+
+<Accordion title="400 MERCHANT_REQUIRED">
+  Company API keys must include `X-Merchant-Id` on every order and pickup request. Retrieve your merchants first:
+
+  ```bash
+  GET https://now.com.eg/api/public/v1/merchants
+  ```
+
+  Then pass the merchant's `businessAccountCode` or `externalMerchantId` in the header:
+
+  ```http
+  X-Merchant-Id: 48291736
+  ```
+</Accordion>
+
+<Accordion title="403 MERCHANT_NOT_FOUND">
+  The merchant ID you sent in `X-Merchant-Id` either does not exist or is not linked to your company account. Verify the merchant appears in `GET /merchants` and that the correct company API key is in use. If the merchant is missing, contact your Now Shipping account manager to confirm the linkage in admin.
+</Accordion>
+
+<Accordion title="409 MERCHANT_ALREADY_EXISTS">
+  A merchant with the same `email`, `phone`, or `externalMerchantId` is already registered under your company. Call `GET /merchants?search=<email_or_id>` to retrieve the existing merchant record and store the returned `businessAccountCode` instead of creating a duplicate.
+</Accordion>
+
+<Accordion title="403 SCOPE_DENIED">
+  Your API key does not have the scope required by the endpoint you called. Scopes map to endpoint groups: `orders` → `/orders/*`, `pickups` → `/pickups/*`, `merchants` → `/merchants/*`. Create a new API key in the Now Shipping admin with the missing scope included and rotate your integration to the new key.
+</Accordion>
+
+</AccordionGroup>

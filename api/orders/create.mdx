@@ -1,0 +1,287 @@
+---
+title: "POST /orders — Create a Shipping Order"
+sidebarTitle: "POST /orders"
+description: "Create a Deliver, Return, or Exchange order. Requires exact zone from /delivery-zones catalog. Fees are computed server-side."
+---
+
+Use this endpoint to create a new shipping order for a customer. You can create three types of orders — **Deliver** to ship a package, **Return** to retrieve a package back from a customer, or **Exchange** to swap one product for another in a single trip.
+
+Before you create an order, call `GET /delivery-zones` and cache the zone catalog. Zone values must match the catalog exactly — free-text input is rejected.
+
+<Note>
+  Fees are **always computed server-side**. Do not send `orderFees`, `fee`, `shippingFee`, or `amountOfFees` in the request body — they are silently ignored, and the authoritative fee is returned in the response.
+</Note>
+
+## Authentication
+
+| Requirement | Value |
+|-------------|-------|
+| API key | Required (`Authorization: Bearer nsk_live_...`) |
+| Scope | `orders` |
+| `X-Merchant-Id` | Required for company keys — pass `businessAccountCode` or `externalMerchantId` |
+
+## Common request fields
+
+These fields apply to all three order types.
+
+<ParamField body="fullName" type="string" required>
+  Customer's full name.
+</ParamField>
+
+<ParamField body="phoneNumber" type="string" required>
+  Customer's primary phone number.
+</ParamField>
+
+<ParamField body="otherPhoneNumber" type="string">
+  Secondary / alternative phone number.
+</ParamField>
+
+<ParamField body="address" type="string" required>
+  Customer's street address.
+</ParamField>
+
+<ParamField body="buildingNo" type="string">
+  Building number.
+</ParamField>
+
+<ParamField body="apartmentNo" type="string">
+  Apartment number.
+</ParamField>
+
+<ParamField body="government" type="string" required>
+  Destination governorate. Accepted values: `Cairo`, `Giza`, or `Qalyubia`.
+</ParamField>
+
+<ParamField body="zone" type="string" required>
+  Exact zone string from `GET /delivery-zones`. For example: `"Nasr City - ElHay 06 (Nasr City)"`. Free-text values are rejected.
+</ParamField>
+
+<ParamField body="orderType" type="string" required>
+  Type of shipment: `Deliver`, `Return`, or `Exchange`.
+</ParamField>
+
+<ParamField body="deliverToWorkAddress" type="boolean">
+  Set to `true` if the delivery address is a workplace rather than a residence.
+</ParamField>
+
+<ParamField body="previewPermission" type="boolean">
+  When `true`, the customer is allowed to inspect the package contents before accepting delivery.
+</ParamField>
+
+<ParamField body="referralNumber" type="string">
+  Your platform's internal order ID. Store this to cross-reference Now Shipping orders with your own records.
+</ParamField>
+
+<ParamField body="Notes" type="string">
+  Free-text notes for the courier (e.g. landmark, floor access instructions).
+</ParamField>
+
+<ParamField body="selectedPickupAddressId" type="string">
+  Merchant pickup address ID. Defaults to the merchant's main pickup address when omitted.
+</ParamField>
+
+## Order-type fields
+
+<Tabs>
+  <Tab title="Deliver">
+    Use `orderType: "Deliver"` to ship a package to a customer.
+
+    <ParamField body="productDescription" type="string" required>
+      Description of the product(s) being delivered.
+    </ParamField>
+
+    <ParamField body="numberOfItems" type="number" required>
+      Total number of items in the shipment (positive integer).
+    </ParamField>
+
+    <ParamField body="isExpressShipping" type="boolean">
+      Set to `true` to request express (faster) delivery. Incurs an additional fee. Default: `false`.
+    </ParamField>
+
+    <ParamField body="COD" type="boolean">
+      Set to `true` to collect cash from the customer on delivery.
+    </ParamField>
+
+    <ParamField body="amountCOD" type="number">
+      Amount to collect in EGP when `COD` is `true`.
+    </ParamField>
+
+    ```bash
+    curl -X POST "https://now.com.eg/api/public/v1/orders" \
+      -H "Authorization: Bearer nsk_live_YOUR_KEY" \
+      -H "X-Merchant-Id: shop_123" \
+      -H "Content-Type: application/json" \
+      -d '{
+        "fullName": "Ahmed Hassan",
+        "phoneNumber": "01012345678",
+        "address": "15 Nile Street",
+        "government": "Cairo",
+        "zone": "Nasr City - ElHay 06 (Nasr City)",
+        "orderType": "Deliver",
+        "productDescription": "T-shirt x2",
+        "numberOfItems": 2,
+        "isExpressShipping": false,
+        "COD": true,
+        "amountCOD": 500,
+        "referralNumber": "ORDER-1001"
+      }'
+    ```
+  </Tab>
+
+  <Tab title="Return">
+    Use `orderType: "Return"` to retrieve a previously delivered package from a customer back to the merchant.
+
+    <ParamField body="productDescription" type="string" required>
+      Description of the product(s) being returned.
+    </ParamField>
+
+    <ParamField body="numberOfItems" type="number" required>
+      Total number of items being returned (positive integer).
+    </ParamField>
+
+    <ParamField body="originalOrderNumber" type="string" required>
+      The `orderNumber` of the completed `Deliver` order that this return is raised against.
+    </ParamField>
+
+    <ParamField body="returnReason" type="string" required>
+      Reason for the return (e.g. "Wrong size", "Damaged item").
+    </ParamField>
+
+    <ParamField body="returnNotes" type="string">
+      Additional notes about the return for the courier.
+    </ParamField>
+
+    <ParamField body="isPartialReturn" type="boolean">
+      Set to `true` when only some items from the original order are being returned.
+    </ParamField>
+
+    <ParamField body="partialReturnItemCount" type="number">
+      Number of items being returned. Required when `isPartialReturn` is `true`.
+    </ParamField>
+
+    ```bash
+    curl -X POST "https://now.com.eg/api/public/v1/orders" \
+      -H "Authorization: Bearer nsk_live_YOUR_KEY" \
+      -H "X-Merchant-Id: shop_123" \
+      -H "Content-Type: application/json" \
+      -d '{
+        "fullName": "Ahmed Hassan",
+        "phoneNumber": "01012345678",
+        "address": "15 Nile Street",
+        "government": "Cairo",
+        "zone": "Nasr City - ElHay 06 (Nasr City)",
+        "orderType": "Return",
+        "productDescription": "T-shirt x2",
+        "numberOfItems": 2,
+        "originalOrderNumber": "482917",
+        "returnReason": "Wrong size",
+        "isPartialReturn": false
+      }'
+    ```
+  </Tab>
+
+  <Tab title="Exchange">
+    Use `orderType: "Exchange"` to swap the customer's current product with a replacement in a single courier trip.
+
+    <ParamField body="currentPD" type="string" required>
+      Description of the product the customer currently holds (being collected).
+    </ParamField>
+
+    <ParamField body="numberOfItemsCurrentPD" type="number" required>
+      Number of items being collected from the customer.
+    </ParamField>
+
+    <ParamField body="newPD" type="string" required>
+      Description of the replacement product being delivered to the customer.
+    </ParamField>
+
+    <ParamField body="numberOfItemsNewPD" type="number" required>
+      Number of replacement items being delivered.
+    </ParamField>
+
+    <ParamField body="CashDifference" type="boolean">
+      Set to `true` when a cash difference needs to be collected or refunded during the exchange.
+    </ParamField>
+
+    <ParamField body="amountCashDifference" type="number">
+      Cash difference amount in EGP when `CashDifference` is `true`.
+    </ParamField>
+
+    ```bash
+    curl -X POST "https://now.com.eg/api/public/v1/orders" \
+      -H "Authorization: Bearer nsk_live_YOUR_KEY" \
+      -H "X-Merchant-Id: shop_123" \
+      -H "Content-Type: application/json" \
+      -d '{
+        "fullName": "Ahmed Hassan",
+        "phoneNumber": "01012345678",
+        "address": "15 Nile Street",
+        "government": "Cairo",
+        "zone": "Nasr City - ElHay 06 (Nasr City)",
+        "orderType": "Exchange",
+        "currentPD": "Blue T-shirt (L)",
+        "numberOfItemsCurrentPD": 1,
+        "newPD": "Blue T-shirt (XL)",
+        "numberOfItemsNewPD": 1,
+        "CashDifference": false
+      }'
+    ```
+  </Tab>
+</Tabs>
+
+## Response
+
+### 201 — Order created
+
+```json
+{
+  "success": true,
+  "data": {
+    "message": "Order created successfully.",
+    "order": {
+      "orderId": "66f1a2b3c4d5e6f7a8b9c0d2",
+      "orderNumber": "482917",
+      "orderStatus": "new",
+      "statusCategory": "new",
+      "orderFees": 120,
+      "orderDate": "2026-07-26T12:00:00.000Z",
+      "orderType": "Deliver",
+      "isExpressShipping": false,
+      "amountType": "COD",
+      "amount": 500,
+      "customer": {
+        "fullName": "Ahmed Hassan",
+        "phoneNumber": "01012345678",
+        "government": "Cairo",
+        "zone": "Nasr City - ElHay 06 (Nasr City)"
+      },
+      "productDescription": "T-shirt x2",
+      "numberOfItems": 2
+    }
+  }
+}
+```
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `order.orderId` | string | MongoDB `_id` — use this as the path parameter for update, cancel, and delete requests. |
+| `order.orderNumber` | string | 6-digit human-readable order number — use this for get and AWB requests. |
+| `order.orderStatus` | string | Current order status (e.g. `new`). |
+| `order.statusCategory` | string | Grouped status category. |
+| `order.orderFees` | number | Server-computed shipping fee in EGP. |
+| `order.amountType` | string | Payment method: `COD` (cash on delivery), `CD` (cash difference), or `NA`. |
+| `order.amount` | number | COD or cash-difference amount in EGP. |
+
+<Tip>
+  Save both `orderId` and `orderNumber` from this response. You need `orderId` for mutations (update, cancel, delete) and `orderNumber` for read operations (get details, download AWB).
+</Tip>
+
+## Error responses
+
+| HTTP status | Code | Cause |
+|-------------|------|-------|
+| `400` | `VALIDATION_ERROR` | Missing required fields, invalid governorate, or zone not found in the catalog. |
+| `401` | `UNAUTHORIZED` | API key is missing, invalid, or revoked. |
+| `403` | `SCOPE_DENIED` | API key does not have the `orders` scope. |
+| `403` | `MERCHANT_REQUIRED` | Company key used without `X-Merchant-Id`. |
+| `403` | `MERCHANT_NOT_FOUND` | The merchant ID in `X-Merchant-Id` is not linked to your company. |

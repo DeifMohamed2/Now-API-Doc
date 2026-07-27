@@ -1,0 +1,93 @@
+---
+title: "DELETE /pickups/{pickupNumber} — Delete a Pickup"
+sidebarTitle: "DELETE /pickups/{n}"
+description: "Permanently delete a pickup in 'new' or 'pendingPickup' status. Pickups past these states must be cancelled, not deleted."
+---
+
+Use this endpoint to permanently delete a pickup that has not yet been assigned to a courier. Deletion is a hard remove — the pickup record will no longer appear in your list or be retrievable by pickup number. If you only want to stop a pickup without removing its record, use [`POST /pickups/{pickupNumber}/cancel`](/api/pickups/cancel) instead.
+
+<Warning>
+  Only pickups with status `new` or `pendingPickup` can be deleted. Use `POST /pickups/{pickupNumber}/cancel` for pickups in any other state.
+</Warning>
+
+## Authentication
+
+All requests require a valid API key. Company account keys must also include the `X-Merchant-Id` header.
+
+```http
+Authorization: Bearer nsk_live_YOUR_KEY
+X-Merchant-Id: shop_123
+```
+
+<Note>
+  `X-Merchant-Id` accepts your `businessAccountCode` (8-digit), `externalMerchantId`, or MongoDB `_id`. Single-business keys do not require this header.
+</Note>
+
+## Path parameter
+
+<ParamField path="pickupNumber" type="string" required>
+  The 6-digit pickup number returned when the pickup was created (e.g. `482917`).
+</ParamField>
+
+## Request body
+
+This endpoint does not require a request body.
+
+## Example request
+
+```bash
+curl -X DELETE "https://now.com.eg/api/public/v1/pickups/482917" \
+  -H "Authorization: Bearer nsk_live_YOUR_KEY" \
+  -H "X-Merchant-Id: shop_123"
+```
+
+## Response
+
+A successful deletion returns HTTP `200`.
+
+<ResponseField name="success" type="boolean">
+  `true` on success.
+</ResponseField>
+
+<ResponseField name="data" type="object">
+  Confirmation that the pickup was deleted.
+</ResponseField>
+
+```json
+{
+  "success": true,
+  "data": {
+    "message": "Pickup deleted successfully.",
+    "pickupNumber": "482917"
+  }
+}
+```
+
+## Error responses
+
+| HTTP status | Error code | Description |
+|-------------|------------|-------------|
+| `400` | `VALIDATION_ERROR` | Pickup status is not `new` or `pendingPickup` — deletion is not allowed. |
+| `404` | `NOT_FOUND` | No pickup with this `pickupNumber` found under your account. |
+| `401` | `UNAUTHORIZED` | Missing or invalid API key. |
+| `403` | `MERCHANT_REQUIRED` | Company key used without `X-Merchant-Id`. |
+| `403` | `MERCHANT_NOT_FOUND` | The merchant in `X-Merchant-Id` is not linked to your company. |
+
+### Example error — deletion not allowed
+
+```json
+{
+  "success": false,
+  "error": {
+    "code": "VALIDATION_ERROR",
+    "message": "This pickup can no longer be deleted.",
+    "details": {
+      "currentStatus": "pickedUp"
+    }
+  }
+}
+```
+
+<Tip>
+  If you are unsure of the current status, call [`GET /pickups/{pickupNumber}`](/api/pickups/get) before attempting a delete. For pickups in active or completed states, use [`POST /pickups/{pickupNumber}/cancel`](/api/pickups/cancel).
+</Tip>

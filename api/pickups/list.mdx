@@ -1,0 +1,131 @@
+---
+title: "GET /pickups — List Pickups with Filters"
+sidebarTitle: "GET /pickups"
+description: "List all pickups for your account or merchant. Filter by status, date range, and pickup type (Upcoming or Completed). Supports pagination."
+---
+
+Use this endpoint to retrieve a paginated list of pickups associated with your account or a specific merchant. You can narrow results by status, status category, scheduled date range, or pickup type. The `pickupType` filter is the quickest way to split your dashboard into **Upcoming** and **Completed** views.
+
+## Authentication
+
+All requests require a valid API key. Company account keys must also include the `X-Merchant-Id` header.
+
+```http
+Authorization: Bearer nsk_live_YOUR_KEY
+X-Merchant-Id: shop_123
+```
+
+<Note>
+  `X-Merchant-Id` accepts your `businessAccountCode` (8-digit), `externalMerchantId`, or MongoDB `_id`. Single-business keys do not require this header.
+</Note>
+
+## Query parameters
+
+<ParamField query="page" type="integer">
+  Page number for pagination. Defaults to `1`.
+</ParamField>
+
+<ParamField query="limit" type="integer">
+  Number of results returned per page. Defaults to `30`.
+</ParamField>
+
+<ParamField query="status" type="string">
+  Filter by a specific pickup status string (e.g. `new`, `pendingPickup`).
+</ParamField>
+
+<ParamField query="statusCategory" type="string">
+  Filter by status category (e.g. `new`, `completed`, `cancelled`).
+</ParamField>
+
+<ParamField query="dateFrom" type="string">
+  Return pickups scheduled on or after this date. Format: `YYYY-MM-DD`.
+</ParamField>
+
+<ParamField query="dateTo" type="string">
+  Return pickups scheduled on or before this date. Format: `YYYY-MM-DD`.
+</ParamField>
+
+<ParamField query="search" type="string">
+  Free-text search against pickup number or contact phone number.
+</ParamField>
+
+<ParamField query="pickupType" type="string">
+  Filter by pickup type. Accepted values: `Upcoming` or `Completed`.
+</ParamField>
+
+## Example request
+
+```bash
+curl "https://now.com.eg/api/public/v1/pickups?page=1&limit=20&pickupType=Upcoming" \
+  -H "Authorization: Bearer nsk_live_YOUR_KEY" \
+  -H "X-Merchant-Id: shop_123"
+```
+
+## Response
+
+A successful request returns HTTP `200` with a `pickups` array and a `pagination` object.
+
+<ResponseField name="success" type="boolean">
+  `true` on success.
+</ResponseField>
+
+<ResponseField name="data.pickups" type="array">
+  Array of pickup summary objects. Each item includes `pickupId`, `pickupNumber`, `pickupDate`, `picikupStatus`, `statusCategory`, `statusLabel`, `numberOfOrders`, `pickupFees`, `phoneNumber`, `isFragileItems`, `isLargeItems`, `pickupNotes`, `createdAt`, and `updatedAt`.
+</ResponseField>
+
+<ResponseField name="data.pagination" type="object">
+  <Expandable title="pagination fields">
+    <ResponseField name="currentPage" type="integer">
+      The current page number returned.
+    </ResponseField>
+    <ResponseField name="totalPages" type="integer">
+      Total number of pages available for the current filter set.
+    </ResponseField>
+    <ResponseField name="totalCount" type="integer">
+      Total number of pickups matching the current filters.
+    </ResponseField>
+    <ResponseField name="hasNext" type="boolean">
+      `true` if a next page exists.
+    </ResponseField>
+    <ResponseField name="hasPrev" type="boolean">
+      `true` if a previous page exists.
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+```json
+{
+  "success": true,
+  "data": {
+    "pickups": [
+      {
+        "pickupId": "66f1a2b3c4d5e6f7a8b9c0d3",
+        "pickupNumber": "482917",
+        "pickupDate": "2026-07-28",
+        "picikupStatus": "new",
+        "statusCategory": "new",
+        "statusLabel": "New",
+        "numberOfOrders": 15,
+        "pickupFees": 50,
+        "phoneNumber": "01012345678",
+        "isFragileItems": false,
+        "isLargeItems": false,
+        "pickupNotes": "Call before arrival",
+        "createdAt": "2026-07-26T12:00:00.000Z",
+        "updatedAt": "2026-07-26T12:00:00.000Z"
+      }
+    ],
+    "pagination": {
+      "currentPage": 1,
+      "totalPages": 3,
+      "totalCount": 55,
+      "hasNext": true,
+      "hasPrev": false
+    }
+  }
+}
+```
+
+<Tip>
+  Use `pickupType=Upcoming` to power an active pickups dashboard, and `pickupType=Completed` for history views. Combine with `dateFrom` and `dateTo` to scope results to a specific week or month.
+</Tip>

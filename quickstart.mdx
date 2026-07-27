@@ -1,47 +1,190 @@
 ---
-title: "Quickstart"
-description: "Begin with a guide on the fastest path to a successful outcome"
+title: "Get Started with Now Shipping API in 5 Minutes"
+sidebarTitle: "Quickstart"
+description: "Ship your first order through Now Shipping API: load zones, onboard a merchant, create an order, download the AWB, and schedule a pickup."
 ---
 
-Describe how someone begins using your product. What is the first thing they need to do? Are there any prerequisites?
+This guide walks you through placing a real shipment with the Now Shipping API. There are two paths depending on how your account is configured. Pick the one that matches your use case — most platform integrators should follow the **Company Integrator** path.
 
-A quickstart should take someone from zero to using your product. They'll get a quick win and a sense of what they can accomplish.
+<Warning>
+Never send fee fields (`orderFees`, `pickupFees`, `fee`, `shippingFee`, `amountOfFees`) in any create or update request. Fees are always computed server-side and the authoritative value is always returned in the response.
+</Warning>
 
-## Prerequisites
+## Choose your path
 
-Before you begin, you must have:
+**Single Business** — You operate one store and your API key belongs directly to that business. No merchant routing is needed.
 
-- Requirement one (for example, Node.js 18+, a free account, an API key)
-- Requirement two (for example, a compatible device, a compatible browser, a compatible operating system)
+**Company Integrator** — You run a multi-tenant platform (e.g. an e-commerce SaaS) where multiple merchants ship through your integration. One API key serves all merchants; you identify each one per-request with `X-Merchant-Id`.
 
-## Get started
+---
+
+## Single Business
+
+If your account is a standard single-business account, the workflow is straightforward:
+
+1. `GET /delivery-zones` — Fetch the zone catalog and build your address picker from `governorates[].areas[].value`
+2. `POST /fees/calculate` — Optionally preview the shipping fee before creating the order
+3. `POST /orders` — Create the order; the response contains the server-computed `orderFees`
+4. `GET /orders/{orderNumber}/awb` — Download the AWB shipping label PDF (A4 or A5)
+5. `POST /pickups` — Schedule a courier pickup at your address
+
+You do **not** need `X-Merchant-Id` on any of these requests.
+
+---
+
+## Company Integrator (Multi-Tenant)
+
+This is the primary path for platform integrators. Your API key operates on behalf of many merchant sub-accounts. Include `X-Merchant-Id` on every order and pickup request to route it to the correct merchant.
 
 <Steps>
-  <Step title="Install">
-    Describe how to install your product or sign up.
 
-    ```bash
-    npm install your-package
-    ```
-  </Step>
-  <Step title="Configure">
-    Describe any setup or configuration needed before first use.
+### Load delivery zones
 
-    ```bash
-    your-cli init
-    ```
-  </Step>
-  <Step title="Run it">
-    Show the first thing a user does to see it working.
+Fetch the authoritative zone catalog once and cache it. You will use `areas[].value` strings in every order and merchant onboarding request — no other zone format is accepted.
 
-    ```bash
-    your-cli start
-    ```
-  </Step>
+```bash
+curl "https://now.com.eg/api/public/v1/delivery-zones" \
+  -H "Authorization: Bearer nsk_live_YOUR_KEY"
+```
+
+The response contains a `governorates` array with three entries (`Cairo`, `Giza`, `Qalyubia`), each with an `areas` list. Store the `value` field from each area — that exact string is what you send in the `zone` field later.
+
+<Note>
+Cache the response using the `ETag` header. On subsequent requests, send `If-None-Match: <etag>` — a `304 Not Modified` response means your cached data is still current and saves bandwidth. Refresh the cache periodically; zones are updated occasionally.
+</Note>
+
+### Onboard a merchant
+
+Call `POST /merchants` once per shop on your platform. Pass your internal shop ID as `externalMerchantId` so you can reference the merchant later without looking up the Now Shipping `businessAccountCode`.
+
+```bash
+curl -X POST "https://now.com.eg/api/public/v1/merchants" \
+  -H "Authorization: Bearer nsk_live_YOUR_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "Acme Store",
+    "email": "owner@acme.com",
+    "phone": "01000000000",
+    "brandName": "Acme",
+    "externalMerchantId": "shop_123",
+    "pickupAddress": {
+      "city": "Cairo",
+      "zone": "Nasr City - ElHay 06 (Nasr City)",
+      "addressDetails": "12 Street, Building 4",
+      "pickupPhone": "01000000000"
+    }
+  }'
+```
+
+The `201` response includes a `merchant` object. **Save both identifiers** to your database:
+
+- `businessAccountCode` — e.g. `48291736` (8-digit code assigned by Now Shipping)
+- `externalMerchantId` — the value you passed in (`shop_123`)
+
+Either identifier is accepted as `X-Merchant-Id` on subsequent requests.
+
+### Preview the shipping fee (optional)
+
+Before creating an order, you can show your merchant an estimated shipping fee. Send the destination governorate, order type, and whether express shipping is requested.
+
+```bash
+curl -X POST "https://now.com.eg/api/public/v1/fees/calculate" \
+  -H "Authorization: Bearer nsk_live_YOUR_KEY" \
+  -H "X-Merchant-Id: shop_123" \
+  -H "Content-Type: application/json" \
+  -d '{"government": "Cairo", "orderType": "Deliver", "isExpressShipping": false}'
+```
+
+The response returns the fee in EGP. This is a preview only — the authoritative fee is always computed again at order creation and returned in `orderFees`. Never carry this value forward into the create request body.
+
+### Create an order
+
+Create a `Deliver` order for a customer. The API also supports `Return` and `Exchange` order types — each has its own additional required fields.
+
+```bash
+curl -X POST "https://now.com.eg/api/public/v1/orders" \
+  -H "Authorization: Bearer nsk_live_YOUR_KEY" \
+  -H "X-Merchant-Id: shop_123" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "fullName": "Ahmed Hassan",
+    "phoneNumber": "01012345678",
+    "address": "15 Nile Street",
+    "government": "Cairo",
+    "zone": "Nasr City - ElHay 06 (Nasr City)",
+    "orderType": "Deliver",
+    "productDescription": "T-shirt x2",
+    "numberOfItems": 2,
+    "COD": true,
+    "amountCOD": 500,
+    "referralNumber": "ORDER-1001"
+  }'
+```
+
+A successful `201` response includes:
+
+```json
+{
+  "success": true,
+  "data": {
+    "message": "Order created successfully.",
+    "order": {
+      "orderId": "66f1a2b3c4d5e6f7a8b9c0d2",
+      "orderNumber": "482917",
+      "orderStatus": "new",
+      "orderFees": 120,
+      "orderType": "Deliver",
+      "amountType": "COD",
+      "amount": 500
+    }
+  }
+}
+```
+
+Store `orderNumber` in your database — you need it to download the AWB and to reference the order in support requests. Use `referralNumber` to link the Now Shipping order back to your own order ID.
+
+### Download the AWB label PDF
+
+Fetch the Air Waybill PDF for the order and save it. Print it and attach it to the shipment before handoff to the courier. Supported sizes are `A4` (default) and `A5`.
+
+```bash
+curl "https://now.com.eg/api/public/v1/orders/482917/awb?size=A4" \
+  -H "Authorization: Bearer nsk_live_YOUR_KEY" \
+  -H "X-Merchant-Id: shop_123" \
+  -o awb-482917.pdf
+```
+
+The response is a binary `application/pdf` file streamed directly. The `-o` flag saves it to disk.
+
+### Schedule a pickup
+
+Request a courier pickup at the merchant's default address for a specified date. Include the expected number of orders so the courier can plan accordingly.
+
+```bash
+curl -X POST "https://now.com.eg/api/public/v1/pickups" \
+  -H "Authorization: Bearer nsk_live_YOUR_KEY" \
+  -H "X-Merchant-Id: shop_123" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "numberOfOrders": 5,
+    "pickupDate": "2026-07-28",
+    "phoneNumber": "01000000000",
+    "pickupNotes": "Call before arrival"
+  }'
+```
+
+The `201` response contains a `pickupNumber` and the server-computed `pickupFees`. Store the `pickupNumber` to track or cancel the pickup later.
+
 </Steps>
 
-<Tip>
-  Give people a way to get help. This could be a link to a support page, a chat with a customer support agent, or a forum for your product.
+---
 
-  Example: Need help? Reach out to us at [support@yourcompany.com](mailto:support@yourcompany.com).
-</Tip>
+## Next steps
+
+<Note>
+Now that you have a working flow, explore the full reference documentation to handle edge cases and advanced scenarios:
+
+- [Authentication](/authentication) — key rotation, scopes, and the `/ping` health check
+- [Multi-Tenant Model](/concepts/multi-tenant) — deeper explanation of `X-Merchant-Id` routing, accepted identifier formats, and company account architecture
+- [Error Reference](/api/errors) — all error codes, HTTP statuses, and a troubleshooting checklist for the most common failures
+</Note>

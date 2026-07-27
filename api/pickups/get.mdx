@@ -1,0 +1,149 @@
+---
+title: "GET /pickups/{pickupNumber} — Get Pickup Details"
+sidebarTitle: "GET /pickups/{n}"
+description: "Retrieve full pickup details by pickup number, including status, scheduled date, fees, and linked pickup address information."
+---
+
+Use this endpoint to retrieve the complete details of a single pickup by its `pickupNumber`. The response includes the full pickup object along with the `selectedPickupAddress` block, giving you the exact address the courier will visit. You receive the `pickupNumber` in the response of [`POST /pickups`](/api/pickups/create).
+
+## Authentication
+
+All requests require a valid API key. Company account keys must also include the `X-Merchant-Id` header.
+
+```http
+Authorization: Bearer nsk_live_YOUR_KEY
+X-Merchant-Id: shop_123
+```
+
+<Note>
+  `X-Merchant-Id` accepts your `businessAccountCode` (8-digit), `externalMerchantId`, or MongoDB `_id`. Single-business keys do not require this header.
+</Note>
+
+## Path parameter
+
+<ParamField path="pickupNumber" type="string" required>
+  The 6-digit pickup number returned when the pickup was created (e.g. `482917`).
+</ParamField>
+
+## Example request
+
+```bash
+curl "https://now.com.eg/api/public/v1/pickups/482917" \
+  -H "Authorization: Bearer nsk_live_YOUR_KEY" \
+  -H "X-Merchant-Id: shop_123"
+```
+
+## Response
+
+A successful request returns HTTP `200` with the full pickup object and the linked address details.
+
+<ResponseField name="success" type="boolean">
+  `true` on success.
+</ResponseField>
+
+<ResponseField name="data.pickup" type="object">
+  <Expandable title="pickup fields">
+    <ResponseField name="pickupId" type="string">
+      MongoDB `_id` of the pickup record.
+    </ResponseField>
+    <ResponseField name="pickupNumber" type="string">
+      6-digit pickup number.
+    </ResponseField>
+    <ResponseField name="pickupDate" type="string">
+      Scheduled pickup date in `YYYY-MM-DD` format.
+    </ResponseField>
+    <ResponseField name="picikupStatus" type="string">
+      Current pickup status string (e.g. `new`, `pendingPickup`). Note the field name is `picikupStatus` as returned by the API.
+    </ResponseField>
+    <ResponseField name="statusCategory" type="string">
+      Status category for grouping.
+    </ResponseField>
+    <ResponseField name="statusLabel" type="string">
+      Human-readable status label.
+    </ResponseField>
+    <ResponseField name="numberOfOrders" type="number">
+      Expected order count for this pickup.
+    </ResponseField>
+    <ResponseField name="pickupFees" type="number">
+      Server-computed pickup fee in EGP.
+    </ResponseField>
+    <ResponseField name="phoneNumber" type="string">
+      Courier contact phone number.
+    </ResponseField>
+    <ResponseField name="isFragileItems" type="boolean">
+      Whether fragile items were flagged on this pickup.
+    </ResponseField>
+    <ResponseField name="isLargeItems" type="boolean">
+      Whether large or oversized items were flagged.
+    </ResponseField>
+    <ResponseField name="pickupNotes" type="string">
+      Notes attached for the courier.
+    </ResponseField>
+    <ResponseField name="createdAt" type="string">
+      ISO 8601 creation timestamp.
+    </ResponseField>
+    <ResponseField name="updatedAt" type="string">
+      ISO 8601 timestamp of the most recent update.
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+<ResponseField name="data.pickup.selectedPickupAddress" type="object">
+  <Expandable title="selectedPickupAddress fields">
+    <ResponseField name="city" type="string">
+      Governorate of the pickup address (e.g. `Cairo`).
+    </ResponseField>
+    <ResponseField name="zone" type="string">
+      Exact zone value from the delivery zone catalog.
+    </ResponseField>
+    <ResponseField name="addressDetails" type="string">
+      Street, building, and floor details.
+    </ResponseField>
+    <ResponseField name="pickupPhone" type="string">
+      Phone number associated with the pickup address.
+    </ResponseField>
+    <ResponseField name="nearbyLandmark" type="string">
+      Optional landmark to help the courier locate the address.
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+```json
+{
+  "success": true,
+  "data": {
+    "pickup": {
+      "pickupId": "66f1a2b3c4d5e6f7a8b9c0d3",
+      "pickupNumber": "482917",
+      "pickupDate": "2026-07-28",
+      "picikupStatus": "new",
+      "statusCategory": "new",
+      "statusLabel": "New",
+      "numberOfOrders": 15,
+      "pickupFees": 50,
+      "phoneNumber": "01012345678",
+      "isFragileItems": false,
+      "isLargeItems": false,
+      "pickupNotes": "Call before arrival",
+      "createdAt": "2026-07-26T12:00:00.000Z",
+      "updatedAt": "2026-07-26T12:00:00.000Z",
+      "selectedPickupAddress": {
+        "city": "Cairo",
+        "zone": "Nasr City - ElHay 06 (Nasr City)",
+        "addressDetails": "12 Street, Building 4",
+        "pickupPhone": "01000000000",
+        "nearbyLandmark": "Near City Center"
+      }
+    }
+  }
+}
+```
+
+## Error responses
+
+| HTTP status | Error code | Description |
+|-------------|------------|-------------|
+| `404` | `NOT_FOUND` | No pickup exists with this `pickupNumber` under your account. |
+| `401` | `UNAUTHORIZED` | Missing or invalid API key. |
+| `403` | `MERCHANT_REQUIRED` | Company key used without `X-Merchant-Id`. |
+| `403` | `MERCHANT_NOT_FOUND` | The merchant specified in `X-Merchant-Id` is not linked to your company. |

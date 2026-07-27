@@ -1,0 +1,120 @@
+---
+title: "POST /fees/calculate — Preview Shipping Fee Before Ordering"
+sidebarTitle: "POST /fees/calculate"
+description: "Calculate the shipping fee for a given governorate, order type, and express flag. Returns EGP amount — never include this in create requests."
+---
+
+Use this endpoint to compute and display a shipping cost estimate to your customers before you create an order. Pass the destination governorate, the order type, and an optional express flag — the API responds with the fee in EGP.
+
+<Warning>
+  Never send `orderFees`, `fee`, `shippingFee`, or `amountOfFees` in create or update requests. The fee you see here is for display purposes only — Now Shipping recomputes it server-side on every order.
+</Warning>
+
+## Authentication
+
+| Requirement | Value |
+|-------------|-------|
+| API key | Required (`Authorization: Bearer nsk_live_...`) |
+| Scope | None required |
+| `X-Merchant-Id` | Optional — if set, uses merchant custom pricing; if omitted, uses company pricing |
+
+<Tip>
+  When you are a company integrator previewing fees for a specific merchant's storefront, always pass `X-Merchant-Id` so the returned fee reflects that merchant's custom pricing tier (if any).
+</Tip>
+
+## Fee factors
+
+Now Shipping computes the fee from four inputs:
+
+1. **Governorate** — Cairo, Giza, and Qalyubia each have different base rates.
+2. **Order type** — Deliver, Return, and Exchange are priced independently.
+3. **Express flag** — Express shipping (Deliver orders only) carries a surcharge.
+4. **Business custom pricing** — If an admin has enabled custom rates for a merchant, those override the standard rate automatically.
+
+## Request
+
+```bash
+curl -X POST "https://now.com.eg/api/public/v1/fees/calculate" \
+  -H "Authorization: Bearer nsk_live_YOUR_KEY" \
+  -H "X-Merchant-Id: shop_123" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "government": "Cairo",
+    "orderType": "Deliver",
+    "isExpressShipping": false
+  }'
+```
+
+### Body parameters
+
+<ParamField body="government" type="string" required>
+  Destination governorate. Accepted values: `Cairo`, `Giza`, or `Qalyubia`.
+</ParamField>
+
+<ParamField body="orderType" type="string" required>
+  The type of shipment. Accepted values: `Deliver`, `Return`, or `Exchange`.
+</ParamField>
+
+<ParamField body="isExpressShipping" type="boolean">
+  When `true`, the fee includes the express delivery surcharge. Only applicable to `Deliver` orders. Default: `false`.
+</ParamField>
+
+## Response
+
+### 200 — Fee calculated
+
+```json
+{
+  "success": true,
+  "data": {
+    "fee": 120,
+    "currency": "EGP",
+    "note": "Fees are computed by Now Shipping based on zone, order type, and express shipping. Never send fee values when creating orders."
+  }
+}
+```
+
+<ResponseField name="data.fee" type="number">
+  The computed shipping fee in EGP. Display this to the user — do **not** forward it in any create or update request body.
+</ResponseField>
+
+<ResponseField name="data.currency" type="string">
+  Always `EGP` (Egyptian Pound).
+</ResponseField>
+
+<ResponseField name="data.note" type="string">
+  A reminder that fee fields must not be sent in create or update requests. Now Shipping always recomputes the authoritative fee server-side.
+</ResponseField>
+
+## Error responses
+
+| HTTP status | Code | Cause |
+|-------------|------|-------|
+| `400` | `VALIDATION_ERROR` | `government` or `orderType` is missing, or the governorate value is not one of `Cairo`, `Giza`, `Qalyubia`. |
+| `401` | `UNAUTHORIZED` | API key is missing, invalid, or revoked. |
+
+### Example error — missing field
+
+```json
+{
+  "success": false,
+  "error": {
+    "code": "VALIDATION_ERROR",
+    "message": "Government and orderType are required",
+    "details": {}
+  }
+}
+```
+
+### Example error — invalid governorate
+
+```json
+{
+  "success": false,
+  "error": {
+    "code": "VALIDATION_ERROR",
+    "message": "Government must be one of: Cairo, Giza, Qalyubia",
+    "details": {}
+  }
+}
+```

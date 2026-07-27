@@ -1,0 +1,60 @@
+---
+title: "API Endpoint Summary — All Now Shipping Public API v1 Routes"
+sidebarTitle: "Endpoint Summary"
+description: "Complete table of all Now Shipping Public API v1 endpoints with method, path, required scope, and X-Merchant-Id requirements."
+---
+
+All endpoints share the base URL `https://now.com.eg/api/public/v1`. The table below summarizes every available endpoint, its required scope, and whether company integrators need to include `X-Merchant-Id`. Use it as a quick reference when building your integration or reviewing which API key scopes your token requires.
+
+<Note>
+  Single-business API keys operate on your own account directly and do **not** require `X-Merchant-Id` on any route. The "Required (company)" notation below applies only to company account keys.
+</Note>
+
+## All endpoints
+
+| Method   | Path                                  | Scope       | X-Merchant-Id       |
+| -------- | ------------------------------------- | ----------- | ------------------- |
+| `GET`    | `/ping`                               | —           | —                   |
+| `GET`    | `/delivery-zones`                     | —           | —                   |
+| `POST`   | `/fees/calculate`                     | —           | Optional            |
+| `GET`    | `/merchants`                          | `merchants` | —                   |
+| `POST`   | `/merchants`                          | `merchants` | —                   |
+| `GET`    | `/merchants/{id}`                     | `merchants` | —                   |
+| `POST`   | `/orders`                             | `orders`    | Required (company)  |
+| `GET`    | `/orders`                             | `orders`    | Required (company)  |
+| `GET`    | `/orders/{orderNumber}`               | `orders`    | Required (company)  |
+| `PUT`    | `/orders/{orderId}`                   | `orders`    | Required (company)  |
+| `POST`   | `/orders/{orderId}/cancel`            | `orders`    | Required (company)  |
+| `DELETE` | `/orders/{orderId}`                   | `orders`    | Required (company)  |
+| `GET`    | `/orders/{orderNumber}/awb`           | `orders`    | Required (company)  |
+| `POST`   | `/pickups/calculate-fee`              | `pickups`   | Required (company)  |
+| `POST`   | `/pickups`                            | `pickups`   | Required (company)  |
+| `GET`    | `/pickups`                            | `pickups`   | Required (company)  |
+| `GET`    | `/pickups/{pickupNumber}`             | `pickups`   | Required (company)  |
+| `PUT`    | `/pickups/{pickupNumber}`             | `pickups`   | Required (company)  |
+| `POST`   | `/pickups/{pickupNumber}/cancel`      | `pickups`   | Required (company)  |
+| `DELETE` | `/pickups/{pickupNumber}`             | `pickups`   | Required (company)  |
+
+## Notes
+
+- **No scope required:** `/ping`, `/delivery-zones`, `/fees/calculate`, `/docs`, and `/openapi.yaml` are open to any valid API key regardless of its scopes. `/docs` and `/openapi.yaml` require no authentication at all.
+- **`/fees/calculate` and `X-Merchant-Id`:** Passing `X-Merchant-Id` on this endpoint applies the merchant's custom pricing to the fee preview. Omit it to use your company account's default pricing.
+- **`X-Merchant-Id` accepted values:** You can pass a merchant's `businessAccountCode` (8-digit code), `externalMerchantId` (your platform shop ID), or MongoDB `_id` — all three are resolved to the same merchant. You can also pass the value as a query param: `?merchantId=48291736`.
+
+## Scope reference
+
+Each API key carries a set of scopes that gate access to endpoint groups. The table below maps scopes to the routes they unlock.
+
+| Scope       | Covers              |
+| ----------- | ------------------- |
+| `orders`    | `/orders/*`         |
+| `pickups`   | `/pickups/*`        |
+| `merchants` | `/merchants/*`      |
+
+<Tip>
+  New API keys default to all three scopes: `["orders", "pickups", "merchants"]`. If you need a narrower-permission key — for example, a read-only reporting integration — create a dedicated key in the Now Shipping admin and assign only the scopes it needs.
+</Tip>
+
+<Warning>
+  A missing scope returns `403 SCOPE_DENIED`. If you hit this error, create a new API key with the required scope and rotate your integration — scopes cannot be added to an existing key.
+</Warning>

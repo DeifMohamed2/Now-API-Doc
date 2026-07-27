@@ -1,0 +1,68 @@
+---
+title: "Now Shipping Public API: Logistics Integration for Egypt"
+sidebarTitle: "Overview"
+description: "Now Shipping Public API v1 lets you embed courier logistics into any e-commerce platform or SaaS product covering Cairo, Giza, and Qalyubia."
+---
+
+The Now Shipping Public API v1 is a REST API that lets you embed professional courier logistics directly into your platform. Whether you run a single online store or a multi-tenant SaaS serving thousands of merchants, the API gives you full programmatic control over the shipment lifecycle — from onboarding a merchant and creating an order to printing a shipping label and scheduling a courier pickup — all within Egypt's Greater Cairo region.
+
+## What you can do
+
+The API exposes six core capabilities, each mapped to a dedicated endpoint group:
+
+| Capability | Description |
+|---|---|
+| **Merchants** | Onboard merchant sub-accounts (`POST /merchants`), list them (`GET /merchants`), and retrieve details by ID |
+| **Orders** | Create Deliver, Return, and Exchange orders; update, cancel, or delete them while editable |
+| **Pickups** | Schedule courier pickups for one or many orders; update or cancel upcoming pickups |
+| **Fees** | Preview shipping and pickup fees before committing to an order (`POST /fees/calculate`) |
+| **Zones** | Retrieve the authoritative governorate + zone catalog (`GET /delivery-zones`) for building address pickers |
+| **AWB Labels** | Download printable Air Waybill PDFs in A4 or A5 format (`GET /orders/{orderNumber}/awb`) |
+
+## Coverage and currency
+
+All deliveries operate within **Greater Cairo** — the three governorates of **Cairo**, **Giza**, and **Qalyubia**. All monetary amounts (order fees, COD amounts, pickup fees) are denominated in **Egyptian Pounds (EGP)**.
+
+## Three principles to internalize first
+
+Before you write a single request, understand these three rules. They are the source of the most common integration mistakes.
+
+<Warning>
+**Fees are always server-side.** Never include `orderFees`, `pickupFees`, `fee`, `shippingFee`, or `amountOfFees` in any create or update request body. The server silently ignores them and computes the authoritative fee itself based on governorate, order type, express flag, and your account's custom pricing. The correct fee is always in the response.
+</Warning>
+
+<Note>
+**Zones must be exact catalog values.** Every `zone` field in an order or merchant pickup address must be a `value` string taken verbatim from `GET /delivery-zones`. Freeform strings like `"Nasr City"` or `"نصر سيتي"` are rejected with a validation error. Build your address picker from the zone catalog and store the raw `value` — not a display label.
+</Note>
+
+<Info>
+**API keys are shown once.** When a Now Shipping admin creates an API key, the full `nsk_live_...` string is displayed one time only. Only a SHA-256 hash is retained in the database; the raw key cannot be recovered. Copy it to a secrets manager immediately at creation time.
+</Info>
+
+## Interactive API reference
+
+Two machine-readable resources are available without any tooling setup:
+
+| Resource | URL |
+|---|---|
+| **Redoc UI** (browser) | `GET https://now.com.eg/api/public/v1/docs` |
+| **OpenAPI spec** (YAML) | `GET https://now.com.eg/api/public/v1/openapi.yaml` |
+
+Both endpoints are public — no API key required to browse the reference documentation.
+
+## Where to go next
+
+<CardGroup cols={2}>
+  <Card title="Quickstart" icon="bolt" href="/quickstart">
+    Ship your first order in five minutes. Covers both single-business and multi-tenant company integrator flows with full curl examples.
+  </Card>
+  <Card title="Authentication" icon="key" href="/authentication">
+    Learn how to obtain an API key, pass it on every request, verify it with `/ping`, and rotate it safely.
+  </Card>
+  <Card title="Multi-Tenant Model" icon="building" href="/concepts/multi-tenant">
+    Understand the company integrator architecture: how one API key serves all your merchants using `X-Merchant-Id`.
+  </Card>
+  <Card title="Error Reference" icon="circle-exclamation" href="/api/errors">
+    Full list of HTTP status codes, error codes like `MERCHANT_REQUIRED` and `SCOPE_DENIED`, and a step-by-step troubleshooting guide.
+  </Card>
+</CardGroup>

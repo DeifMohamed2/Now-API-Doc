@@ -1,0 +1,131 @@
+---
+title: "GET /delivery-zones — Zone Catalog with ETag Caching"
+sidebarTitle: "GET /delivery-zones"
+description: "Retrieve the authoritative catalog of governorates and delivery zones. Use exact area values in all order and merchant onboarding requests."
+---
+
+`GET /delivery-zones` returns every governorate and area that Now Shipping serves. Every zone value you use in an order, exchange, return, or merchant pickup address **must** come verbatim from this endpoint — the API validates all zone strings against this catalog and rejects anything that doesn't match exactly.
+
+<Warning>
+  Always use `areas[].value` exactly as returned by this endpoint. Never abbreviate or paraphrase zone names — for example, `"Nasr City"` will be rejected; the correct value is `"Nasr City - ElHay 06 (Nasr City)"`. Free text is not accepted anywhere in the API.
+</Warning>
+
+## Authentication
+
+| Header | Value |
+|--------|-------|
+| `Authorization` | `Bearer nsk_live_YOUR_KEY` |
+
+No scope is required. Any valid API key can call this endpoint.
+
+## Caching with ETag
+
+The zone catalog changes infrequently. The API returns an `ETag` header with every `200` response. On subsequent requests, send that value as `If-None-Match` — if the catalog hasn't changed you receive `304 Not Modified` with an empty body, saving bandwidth and latency.
+
+<Tip>
+  Cache the zone list in your application at startup and refresh it on a daily schedule (or whenever you receive a zone-validation error). Store the `ETag` value alongside the cached data so you can send conditional requests.
+</Tip>
+
+## Request
+
+### First request
+
+```bash
+curl "https://now.com.eg/api/public/v1/delivery-zones" \
+  -H "Authorization: Bearer nsk_live_YOUR_KEY"
+```
+
+### Conditional request (with ETag)
+
+```bash
+curl "https://now.com.eg/api/public/v1/delivery-zones" \
+  -H "Authorization: Bearer nsk_live_YOUR_KEY" \
+  -H "If-None-Match: \"abc123etag\""
+```
+
+When the catalog is unchanged, the server returns `304 Not Modified` and your cached data remains valid.
+
+## Response
+
+### 200 — Success
+
+```json
+{
+  "success": true,
+  "data": {
+    "meta": {
+      "schemaVersion": 1,
+      "governorateKeys": ["Cairo", "Giza", "Qalyubia"]
+    },
+    "governorates": [
+      {
+        "key": "Cairo",
+        "value": "Cairo",
+        "label": { "en": "Cairo", "ar": "القاهرة" },
+        "areas": [
+          {
+            "value": "Nasr City - ElHay 06 (Nasr City)",
+            "label": { "en": "Nasr City - ElHay 06 (Nasr City)", "ar": "..." }
+          }
+        ]
+      }
+    ]
+  }
+}
+```
+
+### 304 — Not Modified
+
+Returned when the `If-None-Match` value matches the current catalog. The body is empty — continue using your cached data.
+
+## Response fields
+
+<ResponseField name="data.meta" type="object">
+  Catalog metadata.
+
+  <Expandable title="meta fields">
+    <ResponseField name="data.meta.schemaVersion" type="number">
+      Schema version of the catalog. Increment indicates a structural change.
+    </ResponseField>
+    <ResponseField name="data.meta.governorateKeys" type="string[]">
+      Ordered list of governorate keys present in this response.
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+<ResponseField name="data.governorates" type="array">
+  Array of governorate objects, each containing its areas.
+
+  <Expandable title="governorate fields">
+    <ResponseField name="data.governorates[].key" type="string">
+      Governorate key — use this value in the `government` field of order and fee requests (e.g. `"Cairo"`).
+    </ResponseField>
+    <ResponseField name="data.governorates[].value" type="string">
+      Governorate value — identical to `key` in the current schema.
+    </ResponseField>
+    <ResponseField name="data.governorates[].label" type="object">
+      Localized display labels. Contains `en` and `ar` strings — use these to build your UI zone picker.
+    </ResponseField>
+    <ResponseField name="data.governorates[].areas" type="array">
+      List of delivery areas within this governorate.
+
+      <Expandable title="area fields">
+        <ResponseField name="data.governorates[].areas[].value" type="string">
+          **The exact string you must send** in the `zone` field of every order create/update and in `pickupAddress.zone` during merchant onboarding.
+        </ResponseField>
+        <ResponseField name="data.governorates[].areas[].label" type="object">
+          Localized area labels (`en`, `ar`) for display purposes.
+        </ResponseField>
+      </Expandable>
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+## Usage pattern
+
+Build your address form by iterating `governorates` and populating a zone dropdown from `areas[].value` for the selected governorate. Pass the selected `areas[].value` directly into your API requests — no transformation needed.
+
+```
+governorates[].key      →  order.government / pickupAddress.city
+governorates[].areas[].value  →  order.zone / pickupAddress.zone
+```

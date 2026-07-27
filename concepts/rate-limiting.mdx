@@ -1,0 +1,75 @@
+---
+title: "Rate Limits and Request Throttling"
+sidebarTitle: "Rate Limiting"
+description: "Now Shipping API enforces 120 requests per minute per API key. Exceeding the limit returns HTTP 429. Use exponential backoff to recover."
+---
+
+The Now Shipping API enforces a rate limit of **120 requests per minute per API key**. This limit applies across all endpoints and all merchants served by the same key. If your integration exceeds the limit, the API stops processing requests until the window resets and returns HTTP `429` for every subsequent call until then.
+
+## Rate limit details
+
+| Property | Value |
+|----------|-------|
+| Limit | 120 requests per minute |
+| Scope | Per API key |
+| Reset | Rolling 60-second window |
+| Response code | `429 Too Many Requests` |
+
+## Error response
+
+When you exceed the rate limit, every request returns the following response until the window resets:
+
+```json
+{
+  "success": false,
+  "error": {
+    "code": "RATE_LIMITED",
+    "message": "Too many requests. Please slow down."
+  }
+}
+```
+
+<Warning>
+  Do not retry a `429` response immediately. Retrying without a delay will keep your integration locked out for the remainder of the current window and can cause your requests to pile up, making the problem worse.
+</Warning>
+
+## Best practices
+
+### Implement exponential backoff
+
+When you receive a `429`, wait before retrying. Use exponential backoff with jitter so multiple workers in your system don't all retry at the same instant:
+
+<Tip>
+  A simple backoff strategy: wait `min(2^attempt × 100ms + random(0–100ms), 30s)` before each retry. Cap retries at 5 attempts and surface a meaningful error to your system if all retries are exhausted.
+</Tip>
+
+### Cache the zone catalog
+
+`GET /delivery-zones` returns an `ETag` header. Store the ETag and send it as `If-None-Match` on subsequent requests. When the catalog hasn't changed, the API returns `304 Not Modified` with no body — this response still counts against your limit but transfers no data and is processed faster.
+
+```bash
+# First request — store the ETag from the response headers
+curl -i https://now.com.eg/api/public/v1/delivery-zones \
+  -H "Authorization: Bearer nsk_live_YOUR_KEY"
+
+# Subsequent requests — send the stored ETag
+curl -i https://now.com.eg/api/public/v1/delivery-zones \
+  -H "Authorization: Bearer nsk_live_YOUR_KEY" \
+  -H "If-None-Match: \"abc123etag\""
+```
+
+### Avoid polling order status in tight loops
+
+If you need to track order status changes, use a reasonable polling interval (for example, every 2–5 minutes) rather than polling continuously. Tight polling loops are one of the most common causes of hitting the rate limit unnecessarily.
+
+### Space out bulk operations
+
+If your integration creates many orders in a batch — for example, processing overnight orders in the morning — distribute those requests over time rather than firing them all at once. At 120 requests per minute, you can safely sustain one request every 500 ms with comfortable headroom.
+
+```text
+120 req/min  →  2 req/sec  →  500ms between requests (safe baseline)
+```
+
+## Requesting a higher rate limit
+
+If your integration legitimately requires more than 120 requests per minute — for example, during peak sales periods or high-volume batch processing — contact your Now Shipping account manager. Rate limit increases are evaluated on a case-by-case basis.

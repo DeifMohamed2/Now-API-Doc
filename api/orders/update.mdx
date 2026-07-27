@@ -1,0 +1,169 @@
+---
+title: "PUT /orders/{orderId} — Update an Existing Order"
+sidebarTitle: "PUT /orders/{id}"
+description: "Update order details while the order is in an editable status. Fees are recomputed automatically. Zone and express restrictions apply."
+---
+
+Use this endpoint to correct or update an order's details after creation. You can change customer information, the delivery address, zone, product description, item count, COD amount, and other fields — provided the order is still in an editable status.
+
+The shipping fee is **always recomputed** from the new government, order type, and express flag. You do not need to supply it.
+
+## Authentication
+
+| Requirement | Value |
+|-------------|-------|
+| API key | Required (`Authorization: Bearer nsk_live_...`) |
+| Scope | `orders` |
+| `X-Merchant-Id` | Required for company keys |
+
+## Path parameter
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `orderId` | string | The order's MongoDB `_id` **or** the 6-digit `orderNumber`. Both are accepted. |
+
+## Editability rules
+
+<Warning>
+  You can only update an order while it is in an **editable status** — typically before a courier has been assigned. Attempting to update a locked order returns `403 FORBIDDEN`. Additionally, the express shipping flag cannot be changed for orders older than 6 hours.
+</Warning>
+
+| Restriction | Detail |
+|-------------|--------|
+| Status lock | Address and order details cannot be edited after courier assignment or once the order passes the editable stage. |
+| Express shipping | `isExpressShipping` cannot be toggled for orders created more than 6 hours ago. |
+
+## Request body
+
+Send the same fields as `POST /orders`. All fields are re-validated on update, so include the complete desired state rather than only the changed fields.
+
+<ParamField body="fullName" type="string" required>
+  Customer's full name.
+</ParamField>
+
+<ParamField body="phoneNumber" type="string" required>
+  Customer's primary phone number.
+</ParamField>
+
+<ParamField body="otherPhoneNumber" type="string">
+  Secondary / alternative phone number.
+</ParamField>
+
+<ParamField body="address" type="string" required>
+  Customer's street address.
+</ParamField>
+
+<ParamField body="buildingNo" type="string">
+  Building number.
+</ParamField>
+
+<ParamField body="apartmentNo" type="string">
+  Apartment number.
+</ParamField>
+
+<ParamField body="government" type="string" required>
+  Destination governorate. Accepted values: `Cairo`, `Giza`, or `Qalyubia`.
+</ParamField>
+
+<ParamField body="zone" type="string" required>
+  Exact zone string from `GET /delivery-zones` (e.g. `"Nasr City - ElHay 06 (Nasr City)"`).
+</ParamField>
+
+<ParamField body="orderType" type="string" required>
+  Type of shipment: `Deliver`, `Return`, or `Exchange`.
+</ParamField>
+
+<ParamField body="productDescription" type="string">
+  Updated product description. Required for `Deliver` and `Exchange` orders.
+</ParamField>
+
+<ParamField body="numberOfItems" type="number">
+  Updated item count. Required for `Deliver` and `Exchange` orders.
+</ParamField>
+
+<ParamField body="isExpressShipping" type="boolean">
+  Express delivery flag. Cannot be changed for orders older than 6 hours.
+</ParamField>
+
+<ParamField body="COD" type="boolean">
+  Cash on delivery flag (`Deliver` orders).
+</ParamField>
+
+<ParamField body="amountCOD" type="number">
+  COD amount in EGP when `COD` is `true`.
+</ParamField>
+
+<ParamField body="Notes" type="string">
+  Updated notes for the courier.
+</ParamField>
+
+<ParamField body="referralNumber" type="string">
+  Your platform's internal order reference.
+</ParamField>
+
+<ParamField body="selectedPickupAddressId" type="string">
+  Merchant pickup address ID override.
+</ParamField>
+
+## Request
+
+```bash
+curl -X PUT "https://now.com.eg/api/public/v1/orders/482917" \
+  -H "Authorization: Bearer nsk_live_YOUR_KEY" \
+  -H "X-Merchant-Id: shop_123" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "fullName": "Ahmed Hassan",
+    "phoneNumber": "01012345678",
+    "address": "20 Nile Street",
+    "government": "Cairo",
+    "zone": "Nasr City - ElHay 06 (Nasr City)",
+    "orderType": "Deliver",
+    "productDescription": "T-shirt x2",
+    "numberOfItems": 2,
+    "isExpressShipping": false
+  }'
+```
+
+## Response
+
+### 200 — Order updated
+
+The response returns the updated order object with the newly recomputed `orderFees`.
+
+```json
+{
+  "success": true,
+  "data": {
+    "message": "Order updated successfully.",
+    "order": {
+      "orderId": "66f1a2b3c4d5e6f7a8b9c0d2",
+      "orderNumber": "482917",
+      "orderStatus": "new",
+      "orderFees": 120,
+      "orderType": "Deliver",
+      "isExpressShipping": false,
+      "customer": {
+        "fullName": "Ahmed Hassan",
+        "phoneNumber": "01012345678",
+        "address": "20 Nile Street",
+        "government": "Cairo",
+        "zone": "Nasr City - ElHay 06 (Nasr City)"
+      }
+    }
+  }
+}
+```
+
+## Error responses
+
+| HTTP status | Code | Cause |
+|-------------|------|-------|
+| `400` | `VALIDATION_ERROR` | Missing required fields, invalid governorate, zone not in catalog, or other field-level validation failure. |
+| `400` | `VALIDATION_ERROR` | Express shipping flag change attempted on an order older than 6 hours. |
+| `400` | `VALIDATION_ERROR` | Zone value does not match the delivery-zones catalog. |
+| `401` | `UNAUTHORIZED` | API key is missing, invalid, or revoked. |
+| `403` | `FORBIDDEN` | Order is locked — courier has been assigned or the order is past the editable stage. |
+| `403` | `SCOPE_DENIED` | API key does not have the `orders` scope. |
+| `403` | `MERCHANT_REQUIRED` | Company key used without `X-Merchant-Id`. |
+| `404` | `NOT_FOUND` | No order with the given `orderId` or `orderNumber` was found. |

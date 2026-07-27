@@ -1,0 +1,92 @@
+---
+title: "Integration Best Practices and Go-Live Checklist"
+sidebarTitle: "Best Practices"
+description: "Checklist and recommendations for a reliable Now Shipping API integration: zone caching, fee handling, merchant ID storage, error logging."
+---
+
+A correct Now Shipping integration is more than just working API calls — it is resilient to network blips, protected against key exposure, and easy to support when something goes wrong. This guide distils the most important patterns into a concrete checklist and a set of do's and don'ts your team can review before go-live and revisit during incident triage.
+
+## Integration checklist
+
+Work through every item below before pointing your integration at the production environment. Each checkbox corresponds to a real failure mode seen in integrations that skipped it.
+
+- [ ] Replace `https://your-domain.com` with `https://now.com.eg` in all request URLs before go-live
+- [ ] Store your API key securely using an environment variable or a secrets manager — never hard-code it
+- [ ] Cache `GET /delivery-zones` with ETag and refresh periodically (for example, daily)
+- [ ] Build your address zone picker exclusively from `governorates[].areas[].value` catalog entries
+- [ ] Persist both `businessAccountCode` and `externalMerchantId` per merchant after onboarding
+- [ ] Send `X-Merchant-Id` on every order and pickup request when using a company API key
+- [ ] Populate `referralNumber` on every order to link Now Shipping orders to your platform's order IDs
+- [ ] Never send fee fields (`orderFees`, `pickupFees`, `fee`, `shippingFee`, `amountCashDifference`) in create or update requests
+- [ ] Handle `429` responses with exponential backoff rather than immediate retries
+- [ ] Log `error.code` and `error.message` from every error response for support escalation
+
+---
+
+## Do's
+
+<Tip>
+  **Call `GET /delivery-zones` before building any address form.** Populate your zone picker directly from the catalog so users can only select valid values. Hard-coding zone strings leads to silent rejections on order creation.
+</Tip>
+
+<Tip>
+  **Use `externalMerchantId` as `X-Merchant-Id` if it is easier for your system.** You do not need to look up the `businessAccountCode` on every request — just pass the same shop ID you used at onboarding.
+</Tip>
+
+<Tip>
+  **Handle merchant re-onboarding idempotently.** If your platform retries onboarding (for example, after a timeout), the API may return `409 MERCHANT_ALREADY_EXISTS`. Catch this response and fetch the existing merchant via `GET /merchants?search=<email or externalMerchantId>` instead of treating the conflict as an error.
+</Tip>
+
+<Tip>
+  **Use `GET /ping` for health checks and API key validation.** This endpoint requires no scope, returns your account identity and active scopes, and costs nothing — make it your first call in monitoring scripts and CI/CD pre-flight checks.
+</Tip>
+
+---
+
+## Don'ts
+
+<Warning>
+  **Do NOT send `orderFees`, `pickupFees`, `fee`, `shippingFee`, or any fee field in create or update requests.** All fees are computed server-side. Sending a fee field does not guarantee that fee will be applied — the server ignores it and computes its own value. Rely on the `orderFees` and `pickupFees` fields in the response for the authoritative amounts.
+</Warning>
+
+<Warning>
+  **Do NOT use free-text zone names.** Strings like `"Nasr City"` or `"القاهرة"` are not valid zone values. Always use the exact `value` string from `GET /delivery-zones` (for example, `"Nasr City - ElHay 06 (Nasr City)"`). Invalid zones return `400 VALIDATION_ERROR`.
+</Warning>
+
+<Warning>
+  **Do NOT share API keys between environments.** Use a dedicated key for staging and a separate key for production. This prevents test orders from appearing in your live account and makes it straightforward to rotate a key without disrupting the other environment.
+</Warning>
+
+<Warning>
+  **Do NOT store your raw API key in client-side code or mobile apps.** API keys are shown only once at creation and cannot be recovered from the Now Shipping database. Any exposure requires an immediate key rotation. All API calls must originate from your server.
+</Warning>
+
+---
+
+## Handling common errors
+
+Use the table below as a quick-reference during development and incident response. Log both `error.code` and `error.message` from every error response — they are the fastest path to diagnosis.
+
+| HTTP status | Error code | Likely cause | How to fix |
+|-------------|------------|--------------|------------|
+| `401` | `UNAUTHORIZED` | Invalid, expired, or revoked API key | Verify the `Authorization: Bearer nsk_live_...` header; confirm the key is active in admin |
+| `400` | `VALIDATION_ERROR` | Zone not in catalog, invalid `orderType`, or missing required fields | Call `GET /delivery-zones` and use the exact `areas[].value` string; check required fields |
+| `403` | `FORBIDDEN` | Order is no longer editable (courier assigned or past editable stage) | Check order status via `GET /orders/{orderNumber}` before attempting an edit |
+| `429` | `RATE_LIMITED` | More than 120 requests per minute on this API key | Implement exponential backoff; consider spreading requests across a queue |
+| `400` | `MERCHANT_REQUIRED` | Company key used without `X-Merchant-Id` on an order or pickup route | Add the `X-Merchant-Id` header; retrieve the correct value from your database |
+| `403` | `MERCHANT_NOT_FOUND` | Merchant ID not linked to your company account | Verify the merchant exists via `GET /merchants`; confirm the ID is correct |
+| `409` | `MERCHANT_ALREADY_EXISTS` | Duplicate email, phone, or `externalMerchantId` on onboarding | Fetch the existing merchant via `GET /merchants?search=<identifier>` and reuse it |
+| `403` | `SCOPE_DENIED` | API key is missing the required scope for this endpoint | Create a new token with the needed scopes (`orders`, `pickups`, `merchants`) in admin |
+| `403` | `ACCOUNT_REMOVED` | The business account associated with this key was deleted | Contact your Now Shipping account manager to restore or provision a new account |
+
+---
+
+## Contact and support
+
+Your Now Shipping account manager is your primary point of contact for anything that cannot be resolved through this documentation. Reach out for:
+
+- **API key provisioning and rotation** — request new keys or revoke compromised ones
+- **Company account setup** — enable the multi-tenant company flag on your account
+- **Custom pricing configuration** — negotiate per-merchant or volume-based shipping rates
+- **Higher rate limits** — request an increased cap beyond the default 120 requests per minute
+- **Integration troubleshooting** — share your `error.code`, `error.message`, and request timestamps to speed up diagnosis

@@ -1,0 +1,82 @@
+---
+title: "POST /orders/{orderId}/cancel — Cancel an Order"
+sidebarTitle: "POST /cancel"
+description: "Cancel an order by order ID or number. Cancellation eligibility depends on current order status. Returns error with currentStatus if not cancellable."
+---
+
+Use this endpoint to cancel an order. Cancellation is only permitted for orders in certain statuses — if the order has already been picked up, is out for delivery, or has been delivered, it cannot be cancelled. The error response tells you the order's current status so you can communicate the right message to your customer.
+
+## Authentication
+
+| Requirement | Value |
+|-------------|-------|
+| API key | Required (`Authorization: Bearer nsk_live_...`) |
+| Scope | `orders` |
+| `X-Merchant-Id` | Required for company keys |
+
+## Path parameter
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `orderId` | string | The order's MongoDB `_id` **or** the 6-digit `orderNumber`. Both are accepted. |
+
+## Cancellation rules
+
+Whether an order can be cancelled depends on its current status. Orders that are already being handled by a courier or have reached a terminal state cannot be cancelled. When cancellation is not allowed, the API returns a `400` error that includes the `currentStatus` field so you know exactly why the request was rejected.
+
+<Note>
+  If you need to remove an order that is still in `new` status, you can also use `DELETE /orders/{orderId}` for a permanent deletion rather than a cancellation.
+</Note>
+
+## Request
+
+This endpoint requires no request body — the order ID in the URL path is sufficient.
+
+```bash
+curl -X POST "https://now.com.eg/api/public/v1/orders/482917/cancel" \
+  -H "Authorization: Bearer nsk_live_YOUR_KEY" \
+  -H "X-Merchant-Id: shop_123"
+```
+
+## Response
+
+### 200 — Order cancelled
+
+```json
+{
+  "success": true,
+  "data": {
+    "message": "Order cancelled successfully."
+  }
+}
+```
+
+## Error responses
+
+### 400 — Cannot cancel from current status
+
+When the order's current status does not permit cancellation, the error response includes a `details.currentStatus` field:
+
+```json
+{
+  "success": false,
+  "error": {
+    "code": "VALIDATION_ERROR",
+    "message": "This order cannot be canceled from its current status",
+    "details": {
+      "currentStatus": "outForDelivery"
+    }
+  }
+}
+```
+
+Use `details.currentStatus` to show an accurate message to the end-user (e.g. "Your order is already out for delivery and cannot be cancelled").
+
+| HTTP status | Code | Cause |
+|-------------|------|-------|
+| `400` | `VALIDATION_ERROR` | The order's current status does not permit cancellation. Check `details.currentStatus`. |
+| `401` | `UNAUTHORIZED` | API key is missing, invalid, or revoked. |
+| `403` | `SCOPE_DENIED` | API key does not have the `orders` scope. |
+| `403` | `MERCHANT_REQUIRED` | Company key used without `X-Merchant-Id`. |
+| `403` | `MERCHANT_NOT_FOUND` | The merchant ID in `X-Merchant-Id` is not linked to your company. |
+| `404` | `NOT_FOUND` | No order with the given `orderId` or `orderNumber` was found. |

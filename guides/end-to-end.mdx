@@ -1,0 +1,300 @@
+---
+title: "End-to-End Integration: Onboard, Ship, and Schedule Pickup"
+sidebarTitle: "End-to-End"
+description: "Complete walkthrough for company integrators: onboard a merchant, create a delivery order, download the AWB, and schedule a courier pickup."
+---
+
+This guide walks you through the full lifecycle of a Now Shipping company integration — from loading the zone catalog to scheduling a courier pickup. By the end, you will have onboarded a merchant sub-account, created a live delivery order, downloaded its shipping label, and confirmed a pickup. Each step builds directly on the previous one, so work through them in order the first time.
+
+<Note>
+  This guide targets **company integrators** using a multi-tenant API key. If you are a single-business account, you can skip Steps 2 and the `X-Merchant-Id` header — your key already operates on your own account directly.
+</Note>
+
+<Steps>
+
+  <Step title="Load delivery zones (cache this response)">
+
+    Before you build any address form or create any order, fetch the authoritative zone catalog. This call returns every valid governorate and area combination that Now Shipping delivers to. Zone strings must be **exact** — free text like `"Nasr City"` will be rejected on order creation.
+
+    ```bash
+    curl "https://now.com.eg/api/public/v1/delivery-zones" \
+      -H "Authorization: Bearer nsk_live_YOUR_KEY"
+    ```
+
+    **Partial response:**
+
+    ```json
+    {
+      "success": true,
+      "data": {
+        "meta": {
+          "schemaVersion": 1,
+          "governorateKeys": ["Cairo", "Giza", "Qalyubia"]
+        },
+        "governorates": [
+          {
+            "key": "Cairo",
+            "value": "Cairo",
+            "label": { "en": "Cairo", "ar": "القاهرة" },
+            "areas": [
+              {
+                "value": "Nasr City - ElHay 06 (Nasr City)",
+                "label": { "en": "Nasr City - ElHay 06 (Nasr City)", "ar": "..." }
+              }
+            ]
+          }
+        ]
+      }
+    }
+    ```
+
+    Always use `areas[].value` verbatim in `zone` fields — never abbreviations, translated labels, or custom strings.
+
+    **Caching strategy:** The zone catalog changes infrequently. Cache the response and send the `ETag` value back on subsequent calls using the `If-None-Match` header. When the catalog is unchanged, the API returns `304 Not Modified` with no body, saving bandwidth and latency. Refresh the cache periodically (for example, daily) to pick up any zone additions.
+
+    ```bash
+    # Subsequent requests — revalidate with ETag
+    curl "https://now.com.eg/api/public/v1/delivery-zones" \
+      -H "Authorization: Bearer nsk_live_YOUR_KEY" \
+      -H 'If-None-Match: "abc123etag"'
+    ```
+
+  </Step>
+
+  <Step title="Onboard a merchant">
+
+    Each shop on your platform maps to one Now Shipping merchant sub-account. A single `POST /merchants` call creates the account, marks it verified, and sets its default pickup address — the merchant is ready to ship immediately after this call.
+
+    <Info>
+      Merchants created via the API do **not** receive dashboard login credentials. They exist solely as shipping sub-accounts under your company.
+    </Info>
+
+    ```bash
+    curl -X POST "https://now.com.eg/api/public/v1/merchants" \
+      -H "Authorization: Bearer nsk_live_YOUR_KEY" \
+      -H "Content-Type: application/json" \
+      -d '{
+        "name": "Acme Store",
+        "email": "owner@acme.com",
+        "phone": "01000000000",
+        "brandName": "Acme",
+        "externalMerchantId": "shop_123",
+        "pickupAddress": {
+          "city": "Cairo",
+          "zone": "Nasr City - ElHay 06 (Nasr City)",
+          "addressDetails": "12 Street, Building 4",
+          "pickupPhone": "01000000000"
+        }
+      }'
+    ```
+
+    **Response `201`:**
+
+    ```json
+    {
+      "success": true,
+      "data": {
+        "message": "Merchant onboarded successfully.",
+        "merchant": {
+          "id": "66f1a2b3c4d5e6f7a8b9c0d1",
+          "businessAccountCode": "48291736",
+          "name": "Acme Store",
+          "brandName": "Acme",
+          "email": "owner@acme.com",
+          "phoneNumber": "01000000000",
+          "externalMerchantId": "shop_123",
+          "isCompleted": true,
+          "isVerified": true,
+          "parentCompany": "66e0a1b2c3d4e5f6a7b8c9d0",
+          "createdAt": "2026-07-26T15:00:00.000Z"
+        }
+      }
+    }
+    ```
+
+    **Save both identifiers to your database immediately:**
+
+    | Field | Example | Use |
+    |-------|---------|-----|
+    | `businessAccountCode` | `48291736` | Stable 8-digit code — use as `X-Merchant-Id` |
+    | `externalMerchantId` | `shop_123` | Your own shop ID — also accepted as `X-Merchant-Id` |
+
+    If you attempt to onboard the same merchant twice, the API returns `409 MERCHANT_ALREADY_EXISTS`. Catch this error and fetch the existing record via `GET /merchants?search=shop_123` rather than treating it as a hard failure.
+
+  </Step>
+
+  <Step title="Preview the shipping fee (optional but recommended)">
+
+    Before creating an order, you can call the fee calculator to display the exact shipping cost to your end-user at checkout. This call is read-only and has no side effects.
+
+    <Warning>
+      Never pass the fee value returned here into the order create request. Fees are always computed server-side on order creation. Any fee field you send (`orderFees`, `fee`, `shippingFee`) is silently ignored.
+    </Warning>
+
+    ```bash
+    curl -X POST "https://now.com.eg/api/public/v1/fees/calculate" \
+      -H "Authorization: Bearer nsk_live_YOUR_KEY" \
+      -H "X-Merchant-Id: shop_123" \
+      -H "Content-Type: application/json" \
+      -d '{
+        "government": "Cairo",
+        "orderType": "Deliver",
+        "isExpressShipping": false
+      }'
+    ```
+
+    **Response `200`:**
+
+    ```json
+    {
+      "success": true,
+      "data": {
+        "fee": 120,
+        "currency": "EGP",
+        "note": "Fees are computed by Now Shipping based on zone, order type, and express shipping. Never send fee values when creating orders."
+      }
+    }
+    ```
+
+    The fee factors in the destination governorate, order type (`Deliver`, `Return`, or `Exchange`), the express shipping flag, and any custom pricing configured for the merchant. Include `X-Merchant-Id` so the calculation reflects the correct merchant pricing tier.
+
+  </Step>
+
+  <Step title="Create a delivery order">
+
+    With the zone catalog loaded and the merchant onboarded, you are ready to create a shipping order. Pass `X-Merchant-Id` using either the `businessAccountCode` or `externalMerchantId` you saved in Step 2. Use `referralNumber` to link the Now Shipping order back to your platform's own order ID — you can query or filter by this reference later.
+
+    ```bash
+    curl -X POST "https://now.com.eg/api/public/v1/orders" \
+      -H "Authorization: Bearer nsk_live_YOUR_KEY" \
+      -H "X-Merchant-Id: shop_123" \
+      -H "Content-Type: application/json" \
+      -d '{
+        "fullName": "Ahmed Hassan",
+        "phoneNumber": "01012345678",
+        "address": "15 Nile Street",
+        "government": "Cairo",
+        "zone": "Nasr City - ElHay 06 (Nasr City)",
+        "orderType": "Deliver",
+        "productDescription": "T-shirt x2",
+        "numberOfItems": 2,
+        "COD": true,
+        "amountCOD": 500,
+        "referralNumber": "ORDER-1001"
+      }'
+    ```
+
+    **Response `201`:**
+
+    ```json
+    {
+      "success": true,
+      "data": {
+        "message": "Order created successfully.",
+        "order": {
+          "orderId": "66f1a2b3c4d5e6f7a8b9c0d2",
+          "orderNumber": "482917",
+          "orderStatus": "new",
+          "statusCategory": "new",
+          "orderFees": 120,
+          "orderDate": "2026-07-26T12:00:00.000Z",
+          "orderType": "Deliver",
+          "isExpressShipping": false,
+          "amountType": "COD",
+          "amount": 500,
+          "customer": {
+            "fullName": "Ahmed Hassan",
+            "phoneNumber": "01012345678",
+            "government": "Cairo",
+            "zone": "Nasr City - ElHay 06 (Nasr City)"
+          },
+          "productDescription": "T-shirt x2",
+          "numberOfItems": 2
+        }
+      }
+    }
+    ```
+
+    Store the `orderNumber` (e.g. `482917`) — you need it in the next two steps. The `orderFees` field in the response is the authoritative, server-computed fee; do not rely on the preview value from Step 3 for billing or reconciliation.
+
+  </Step>
+
+  <Step title="Download the AWB (shipping label)">
+
+    After creating the order, download its Air Waybill PDF. The AWB is returned as a raw `application/pdf` binary. Use the `-o` flag in curl to write it directly to a file.
+
+    ```bash
+    curl "https://now.com.eg/api/public/v1/orders/482917/awb?size=A4" \
+      -H "Authorization: Bearer nsk_live_YOUR_KEY" \
+      -H "X-Merchant-Id: shop_123" \
+      -o awb-482917.pdf
+    ```
+
+    The `size` query parameter controls the label dimensions. Supported values:
+
+    | Value | Use case |
+    |-------|----------|
+    | `A4` | Standard desktop printer (default) |
+    | `A5` | Thermal label printer |
+
+    Print the AWB and attach it to the parcel before the courier arrives for pickup.
+
+  </Step>
+
+  <Step title="Schedule a courier pickup">
+
+    With orders packed and labelled, schedule a courier to collect them. Provide the expected number of orders, a valid future pickup date, and a contact phone number.
+
+    <Info>
+      `pickupDate` must satisfy Now Shipping's pickup date policy — use a future business date. Pickup fees are computed server-side; do not send `pickupFees` in the request body.
+    </Info>
+
+    ```bash
+    curl -X POST "https://now.com.eg/api/public/v1/pickups" \
+      -H "Authorization: Bearer nsk_live_YOUR_KEY" \
+      -H "X-Merchant-Id: shop_123" \
+      -H "Content-Type: application/json" \
+      -d '{
+        "numberOfOrders": 5,
+        "pickupDate": "2026-07-28",
+        "phoneNumber": "01000000000",
+        "pickupNotes": "Call before arrival"
+      }'
+    ```
+
+    **Partial response `201`:**
+
+    ```json
+    {
+      "success": true,
+      "data": {
+        "message": "Pickup scheduled successfully.",
+        "pickup": {
+          "pickupId": "66f1a2b3c4d5e6f7a8b9c0d3",
+          "pickupNumber": "391047",
+          "pickupDate": "2026-07-28",
+          "picikupStatus": "new",
+          "statusCategory": "new",
+          "numberOfOrders": 5,
+          "pickupFees": 50,
+          "phoneNumber": "01000000000",
+          "pickupNotes": "Call before arrival",
+          "createdAt": "2026-07-26T13:00:00.000Z"
+        }
+      }
+    }
+    ```
+
+    Save the `pickupNumber` to track the pickup's status via `GET /pickups/{pickupNumber}`. The `pickupFees` in the response is the authoritative amount — do not use any value from the optional fee preview.
+
+  </Step>
+
+</Steps>
+
+---
+
+Your integration now covers the full company integrator lifecycle: zone catalog, merchant onboarding, fee preview, order creation, AWB download, and pickup scheduling. For a complete checklist of go-live requirements and common error resolutions, see the [Integration Best Practices](/guides/best-practices) guide.
+
+<Note>
+  Ready to go live? Work through the **Integration Best Practices** checklist before flipping to production — it covers secure key storage, ETag caching, fee-field hygiene, and error handling patterns every integration needs.
+</Note>

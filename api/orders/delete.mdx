@@ -1,0 +1,81 @@
+---
+title: "DELETE /orders/{orderId} — Delete a New Order"
+sidebarTitle: "DELETE /orders/{id}"
+description: "Permanently delete an order. Only orders with status 'new' can be deleted. Orders in any other status must be cancelled first."
+---
+
+Use this endpoint to permanently delete an order. Deletion is only available for orders in `new` status — orders that have been picked up, are in transit, or have reached any other status must go through the cancel flow instead.
+
+<Warning>
+  Only orders with status `new` can be deleted. If the order is in any other status, use `POST /orders/{orderId}/cancel` instead. Deletion is permanent and cannot be undone.
+</Warning>
+
+## Authentication
+
+| Requirement | Value |
+|-------------|-------|
+| API key | Required (`Authorization: Bearer nsk_live_...`) |
+| Scope | `orders` |
+| `X-Merchant-Id` | Required for company keys |
+
+## Path parameter
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `orderId` | string | The order's MongoDB `_id` **or** the 6-digit `orderNumber`. Both are accepted. |
+
+## When to delete vs. cancel
+
+| Scenario | Action |
+|----------|--------|
+| Order is in `new` status and you want to remove it entirely | `DELETE /orders/{orderId}` |
+| Order is past `new` status (e.g. `inProgress`, `outForDelivery`) | `POST /orders/{orderId}/cancel` |
+
+## Request
+
+This endpoint requires no request body.
+
+```bash
+curl -X DELETE "https://now.com.eg/api/public/v1/orders/482917" \
+  -H "Authorization: Bearer nsk_live_YOUR_KEY" \
+  -H "X-Merchant-Id: shop_123"
+```
+
+## Response
+
+### 200 — Order deleted
+
+```json
+{
+  "success": true,
+  "data": {
+    "message": "Order deleted successfully."
+  }
+}
+```
+
+## Error responses
+
+### 400 — Order cannot be deleted
+
+If the order's status is anything other than `new`, the API returns a descriptive error:
+
+```json
+{
+  "success": false,
+  "error": {
+    "code": "VALIDATION_ERROR",
+    "message": "This order can no longer be deleted",
+    "details": {}
+  }
+}
+```
+
+| HTTP status | Code | Cause |
+|-------------|------|-------|
+| `400` | `VALIDATION_ERROR` | The order's status is not `new`. Use `POST /orders/{orderId}/cancel` instead. |
+| `401` | `UNAUTHORIZED` | API key is missing, invalid, or revoked. |
+| `403` | `SCOPE_DENIED` | API key does not have the `orders` scope. |
+| `403` | `MERCHANT_REQUIRED` | Company key used without `X-Merchant-Id`. |
+| `403` | `MERCHANT_NOT_FOUND` | The merchant ID in `X-Merchant-Id` is not linked to your company. |
+| `404` | `NOT_FOUND` | No order with the given `orderId` or `orderNumber` was found. |
