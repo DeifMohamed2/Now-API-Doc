@@ -11,10 +11,6 @@
     "primary": "#f49523"
   },
   "navbar": {
-    "primary": {
-      "type": "github",
-      "href": "https://github.com/DeifMohamed2/Now-Shipping"
-    }
   },
   "navigation": {
     "tabs": [
