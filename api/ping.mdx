@@ -1,7 +1,7 @@
 ---
-title: "GET /ping — Health Check and API Key Verification"
-sidebarTitle: "GET /ping"
-description: "Verify your API key is valid and active. Returns account info, company status, and enabled scopes. No scope required."
+title: "GET /ping — API Key Verification and Account Identity"
+sidebarTitle: "Ping"
+description: "Verify your API key is valid and active. Returns the account name, company status, enabled scopes, and key prefix. No scope required to call this endpoint."
 ---
 
 Use `GET /ping` as your first call whenever you set up a new integration or rotate an API key. It confirms your key is active, tells you which account it belongs to, and lists the scopes it carries — all without touching any merchant data.

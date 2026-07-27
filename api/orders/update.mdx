@@ -1,6 +1,6 @@
 ---
 title: "PUT /orders/{orderId} — Update an Existing Order"
-sidebarTitle: "PUT /orders/{id}"
+sidebarTitle: "Update Order"
 description: "Update order details while the order is in an editable status. Fees are recomputed automatically. Zone and express restrictions apply."
 ---
 
@@ -73,24 +73,12 @@ Send the same fields as `POST /orders`. All fields are re-validated on update, s
   Type of shipment: `Deliver`, `Return`, or `Exchange`.
 </ParamField>
 
-<ParamField body="productDescription" type="string">
-  Updated product description. Required for `Deliver` and `Exchange` orders.
+<ParamField body="deliverToWorkAddress" type="boolean">
+  Set to `true` if the delivery address is a workplace rather than a residence.
 </ParamField>
 
-<ParamField body="numberOfItems" type="number">
-  Updated item count. Required for `Deliver` and `Exchange` orders.
-</ParamField>
-
-<ParamField body="isExpressShipping" type="boolean">
-  Express delivery flag. Cannot be changed for orders older than 6 hours.
-</ParamField>
-
-<ParamField body="COD" type="boolean">
-  Cash on delivery flag (`Deliver` orders).
-</ParamField>
-
-<ParamField body="amountCOD" type="number">
-  COD amount in EGP when `COD` is `true`.
+<ParamField body="previewPermission" type="boolean">
+  When `true`, the customer may inspect contents before accepting delivery.
 </ParamField>
 
 <ParamField body="Notes" type="string">
@@ -103,6 +91,88 @@ Send the same fields as `POST /orders`. All fields are re-validated on update, s
 
 <ParamField body="selectedPickupAddressId" type="string">
   Merchant pickup address ID override.
+</ParamField>
+
+## Deliver-specific fields
+
+<ParamField body="productDescription" type="string">
+  Updated product description. Required for `Deliver` orders.
+</ParamField>
+
+<ParamField body="numberOfItems" type="number">
+  Updated item count. Required for `Deliver` orders (positive integer).
+</ParamField>
+
+<ParamField body="isExpressShipping" type="boolean">
+  Express delivery flag. Cannot be changed for orders older than 6 hours.
+</ParamField>
+
+<ParamField body="COD" type="boolean">
+  Cash on delivery flag.
+</ParamField>
+
+<ParamField body="amountCOD" type="number">
+  COD amount in EGP when `COD` is `true`.
+</ParamField>
+
+## Return-specific fields
+
+<ParamField body="productDescription" type="string">
+  Description of the product(s) being returned. Required for `Return` orders.
+</ParamField>
+
+<ParamField body="numberOfItems" type="number">
+  Number of items being returned. Required for `Return` orders.
+</ParamField>
+
+<ParamField body="originalOrderNumber" type="string">
+  The `orderNumber` of the completed `Deliver` order this return is raised against. Required for `Return` orders.
+</ParamField>
+
+<ParamField body="returnReason" type="string">
+  Reason for the return. Required for `Return` orders.
+</ParamField>
+
+<ParamField body="returnNotes" type="string">
+  Additional notes about the return for the courier.
+</ParamField>
+
+<ParamField body="isPartialReturn" type="boolean">
+  Set to `true` when only some items from the original order are being returned.
+</ParamField>
+
+<ParamField body="partialReturnItemCount" type="number">
+  Number of items being returned. Required when `isPartialReturn` is `true`.
+</ParamField>
+
+<ParamField body="originalOrderItemCount" type="number">
+  Total number of items in the original deliver order. Optional — used for reference.
+</ParamField>
+
+## Exchange-specific fields
+
+<ParamField body="currentPD" type="string">
+  Description of the product the customer currently holds (being collected). Required for `Exchange` orders.
+</ParamField>
+
+<ParamField body="numberOfItemsCurrentPD" type="number">
+  Number of items being collected from the customer. Required for `Exchange` orders.
+</ParamField>
+
+<ParamField body="newPD" type="string">
+  Description of the replacement product being delivered. Required for `Exchange` orders.
+</ParamField>
+
+<ParamField body="numberOfItemsNewPD" type="number">
+  Number of replacement items being delivered. Required for `Exchange` orders.
+</ParamField>
+
+<ParamField body="CashDifference" type="boolean">
+  Set to `true` when a cash difference needs to be collected or refunded during the exchange.
+</ParamField>
+
+<ParamField body="amountCashDifference" type="number">
+  Cash difference amount in EGP when `CashDifference` is `true`.
 </ParamField>
 
 ## Request

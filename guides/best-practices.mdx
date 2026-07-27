@@ -1,7 +1,7 @@
 ---
-title: "Integration Best Practices and Go-Live Checklist"
+title: "Now Shipping API: Best Practices and Go-Live Checklist"
 sidebarTitle: "Best Practices"
-description: "Checklist and recommendations for a reliable Now Shipping API integration: zone caching, fee handling, merchant ID storage, error logging."
+description: "Checklist and recommendations for a reliable Now Shipping API integration: zone caching, fee handling, merchant ID storage, and error logging."
 ---
 
 A correct Now Shipping integration is more than just working API calls — it is resilient to network blips, protected against key exposure, and easy to support when something goes wrong. This guide distils the most important patterns into a concrete checklist and a set of do's and don'ts your team can review before go-live and revisit during incident triage.
@@ -10,7 +10,7 @@ A correct Now Shipping integration is more than just working API calls — it is
 
 Work through every item below before pointing your integration at the production environment. Each checkbox corresponds to a real failure mode seen in integrations that skipped it.
 
-- [ ] Replace `https://your-domain.com` with `https://now.com.eg` in all request URLs before go-live
+- [ ] Confirm all request URLs use `https://now.com.eg/api/public/v1` before go-live
 - [ ] Store your API key securely using an environment variable or a secrets manager — never hard-code it
 - [ ] Cache `GET /delivery-zones` with ETag and refresh periodically (for example, daily)
 - [ ] Build your address zone picker exclusively from `governorates[].areas[].value` catalog entries
@@ -38,7 +38,7 @@ Work through every item below before pointing your integration at the production
 </Tip>
 
 <Tip>
-  **Use `GET /ping` for health checks and API key validation.** This endpoint requires no scope, returns your account identity and active scopes, and costs nothing — make it your first call in monitoring scripts and CI/CD pre-flight checks.
+  **Use `GET /ping` for health checks and API key validation.** This endpoint requires no scope, returns your account identity and active scopes, and costs nothing — make it your first call in monitoring scripts and integration pre-flight checks.
 </Tip>
 
 ---

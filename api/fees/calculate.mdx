@@ -1,7 +1,7 @@
 ---
-title: "POST /fees/calculate — Preview Shipping Fee Before Ordering"
-sidebarTitle: "POST /fees/calculate"
-description: "Calculate the shipping fee for a given governorate, order type, and express flag. Returns EGP amount — never include this in create requests."
+title: "POST /fees/calculate — Preview Shipping Fee for an Order"
+sidebarTitle: "Calculate Fee"
+description: "Calculate the shipping fee for a given governorate and order type. Preview the EGP cost before creating an order — never send this value in requests."
 ---
 
 Use this endpoint to compute and display a shipping cost estimate to your customers before you create an order. Pass the destination governorate, the order type, and an optional express flag — the API responds with the fee in EGP.

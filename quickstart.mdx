@@ -1,5 +1,5 @@
 ---
-title: "Get Started with Now Shipping API in 5 Minutes"
+title: "Now Shipping API Quickstart: Place Your First Shipment"
 sidebarTitle: "Quickstart"
 description: "Ship your first order through Now Shipping API: load zones, onboard a merchant, create an order, download the AWB, and schedule a pickup."
 ---
@@ -15,6 +15,18 @@ Never send fee fields (`orderFees`, `pickupFees`, `fee`, `shippingFee`, `amountO
 **Single Business** — You operate one store and your API key belongs directly to that business. No merchant routing is needed.
 
 **Company Integrator** — You run a multi-tenant platform (e.g. an e-commerce SaaS) where multiple merchants ship through your integration. One API key serves all merchants; you identify each one per-request with `X-Merchant-Id`.
+
+<Note>
+**API keys are shown once.** When a Now Shipping admin creates your API key, the full `nsk_live_...` string is displayed one time only. Copy it to a secrets manager immediately — it cannot be recovered after you close the creation dialog. If you lose it, you must revoke the old key and issue a new one.
+</Note>
+
+<Warning>
+**Zone values must be exact.** Every `zone` field in an order or merchant pickup address must be a `value` string taken verbatim from `GET /delivery-zones`. Free-text strings like `"Nasr City"` are rejected with a validation error. Build your address picker from the zone catalog.
+</Warning>
+
+<Note>
+**Company integrators:** your single `nsk_live_...` API key serves all merchants on your platform. Include the `X-Merchant-Id` header on every order and pickup request to route it to the correct merchant. Omitting it on a company key returns `400 MERCHANT_REQUIRED`.
+</Note>
 
 ---
 

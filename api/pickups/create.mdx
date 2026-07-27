@@ -1,7 +1,7 @@
 ---
-title: "POST /pickups — Schedule a Courier Pickup"
-sidebarTitle: "POST /pickups"
-description: "Schedule a courier pickup for a merchant location. Requires a valid future pickupDate and numberOfOrders. Fees are computed server-side."
+title: "Create and Schedule a Courier Pickup — POST /pickups"
+sidebarTitle: "Create Pickup"
+description: "Schedule a courier pickup for your merchant location. Provide a pickupDate, numberOfOrders, and phoneNumber — Now Shipping computes the fee automatically."
 ---
 
 Use this endpoint to schedule a courier pickup at your merchant's location. You provide the date, expected order volume, and contact details — Now Shipping computes the pickup fee automatically. The response contains a `pickupNumber` you use in all subsequent get, update, cancel, and delete requests.
@@ -94,7 +94,7 @@ A successful request returns HTTP `201` with the full pickup object.
       The scheduled pickup date in `YYYY-MM-DD` format.
     </ResponseField>
     <ResponseField name="picikupStatus" type="string">
-      Current pickup status (e.g. `new`). Note the field name is `picikupStatus` (as returned by the API).
+      Current pickup status (e.g. `new`). Note: the field name is `picikupStatus` (as returned by the API).
     </ResponseField>
     <ResponseField name="statusCategory" type="string">
       Status category for grouping (e.g. `new`).
@@ -110,6 +110,12 @@ A successful request returns HTTP `201` with the full pickup object.
     </ResponseField>
     <ResponseField name="phoneNumber" type="string">
       The contact phone number on record for this pickup.
+    </ResponseField>
+    <ResponseField name="pickupLocation" type="string">
+      The pickup location text displayed to the courier.
+    </ResponseField>
+    <ResponseField name="pickupAddressId" type="string">
+      The linked merchant pickup address ID.
     </ResponseField>
     <ResponseField name="isFragileItems" type="boolean">
       Whether fragile items were flagged.
@@ -143,6 +149,8 @@ A successful request returns HTTP `201` with the full pickup object.
       "numberOfOrders": 15,
       "pickupFees": 50,
       "phoneNumber": "01012345678",
+      "pickupLocation": "12 Street, Building 4, Cairo",
+      "pickupAddressId": "66f1a2b3c4d5e6f7a8b9c0d4",
       "isFragileItems": false,
       "isLargeItems": false,
       "pickupNotes": "Call before arrival",

@@ -1,7 +1,7 @@
 ---
-title: "DELETE /pickups/{pickupNumber} — Delete a Pickup"
-sidebarTitle: "DELETE /pickups/{n}"
-description: "Permanently delete a pickup in 'new' or 'pendingPickup' status. Pickups past these states must be cancelled, not deleted."
+title: "Hard-Delete a Pickup Record — DELETE /pickups/{pickupNumber}"
+sidebarTitle: "Delete Pickup"
+description: "Permanently delete a pickup in 'new' or 'pendingPickup' status. This hard-removes the record — use the cancel endpoint for pickups in any other state."
 ---
 
 Use this endpoint to permanently delete a pickup that has not yet been assigned to a courier. Deletion is a hard remove — the pickup record will no longer appear in your list or be retrievable by pickup number. If you only want to stop a pickup without removing its record, use [`POST /pickups/{pickupNumber}/cancel`](/api/pickups/cancel) instead.

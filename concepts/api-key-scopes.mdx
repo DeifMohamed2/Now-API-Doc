@@ -1,7 +1,7 @@
 ---
-title: "API Key Scopes and Permissions"
+title: "Now Shipping API Key Scopes: orders, pickups, merchants"
 sidebarTitle: "Key Scopes"
-description: "Now Shipping API keys carry scopes that control which endpoint groups they can access. Missing scopes return 403 SCOPE_DENIED."
+description: "Now Shipping API keys carry scopes that control which endpoint groups they can access. A missing scope returns 403 SCOPE_DENIED immediately."
 ---
 
 Every Now Shipping API key carries a set of **scopes** that determine which endpoint groups it can call. Scopes let you issue narrowly-privileged keys for specific integrations — for example, a key that can create orders but cannot manage merchants. When a request reaches an endpoint that requires a scope your key doesn't have, the API rejects it immediately with `403 SCOPE_DENIED`.

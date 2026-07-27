@@ -1,7 +1,7 @@
 ---
-title: "DELETE /orders/{orderId} — Delete a New Order"
-sidebarTitle: "DELETE /orders/{id}"
-description: "Permanently delete an order. Only orders with status 'new' can be deleted. Orders in any other status must be cancelled first."
+title: "DELETE /orders/{orderId} — Delete an Order by ID"
+sidebarTitle: "Delete Order"
+description: "Permanently delete a new-status order. Orders that have progressed past new status must go through the cancel endpoint instead of delete."
 ---
 
 Use this endpoint to permanently delete an order. Deletion is only available for orders in `new` status — orders that have been picked up, are in transit, or have reached any other status must go through the cancel flow instead.

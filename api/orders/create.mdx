@@ -1,7 +1,7 @@
 ---
-title: "POST /orders — Create a Shipping Order"
-sidebarTitle: "POST /orders"
-description: "Create a Deliver, Return, or Exchange order. Requires exact zone from /delivery-zones catalog. Fees are computed server-side."
+title: "POST /orders — Create a Deliver, Return, or Exchange"
+sidebarTitle: "Create Order"
+description: "Create a Deliver, Return, or Exchange shipping order. Provide zone values from the /delivery-zones catalog. Fees are always computed server-side."
 ---
 
 Use this endpoint to create a new shipping order for a customer. You can create three types of orders — **Deliver** to ship a package, **Return** to retrieve a package back from a customer, or **Exchange** to swap one product for another in a single trip.
@@ -157,6 +157,10 @@ These fields apply to all three order types.
 
     <ParamField body="partialReturnItemCount" type="number">
       Number of items being returned. Required when `isPartialReturn` is `true`.
+    </ParamField>
+
+    <ParamField body="originalOrderItemCount" type="number">
+      Total number of items in the original deliver order. Optional — used for reference.
     </ParamField>
 
     ```bash

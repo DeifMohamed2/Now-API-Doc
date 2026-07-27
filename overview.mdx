@@ -39,6 +39,10 @@ Before you write a single request, understand these three rules. They are the so
 **API keys are shown once.** When a Now Shipping admin creates an API key, the full `nsk_live_...` string is displayed one time only. Only a SHA-256 hash is retained in the database; the raw key cannot be recovered. Copy it to a secrets manager immediately at creation time.
 </Info>
 
+<Note>
+**Company integrators use one key for all merchants.** If you run a multi-tenant platform, a single `nsk_live_...` API key serves every merchant on your platform. Include the `X-Merchant-Id` header on every order and pickup request to identify the target merchant. Omitting it on a company key returns `400 MERCHANT_REQUIRED`.
+</Note>
+
 ## Interactive API reference
 
 Two machine-readable resources are available without any tooling setup:

@@ -1,7 +1,7 @@
 ---
 title: "GET /merchants/{merchantId} — Retrieve a Merchant by ID"
-sidebarTitle: "GET /merchants/{id}"
-description: "Fetch a single merchant sub-account by businessAccountCode, externalMerchantId, or MongoDB _id. Scope: merchants."
+sidebarTitle: "Get Merchant"
+description: "Fetch a single merchant sub-account linked to your company by businessAccountCode, externalMerchantId, or MongoDB _id. Requires the merchants scope."
 ---
 
 `GET /merchants/{merchantId}` returns the full profile of a single merchant sub-account linked to your company. You can identify the merchant using any of three values — `businessAccountCode`, `externalMerchantId`, or MongoDB `_id` — whichever is most convenient for your system.

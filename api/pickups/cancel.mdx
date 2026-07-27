@@ -1,7 +1,7 @@
 ---
-title: "POST /pickups/{pickupNumber}/cancel — Cancel a Pickup"
-sidebarTitle: "POST /cancel"
-description: "Cancel a scheduled pickup by pickup number. Cancellation eligibility depends on current pickup status."
+title: "Cancel a Pickup — POST /pickups/{pickupNumber}/cancel"
+sidebarTitle: "Cancel Pickup"
+description: "Cancel a scheduled pickup by pickup number. Cancellation depends on current status — the API returns currentStatus in error details when blocked."
 ---
 
 Use this endpoint to cancel a scheduled pickup before the courier arrives. Cancellation eligibility depends on the pickup's current status — if the pickup has progressed past a cancellable state, the API returns an error with the current status in the response details. You receive the `pickupNumber` in the response of [`POST /pickups`](/api/pickups/create).

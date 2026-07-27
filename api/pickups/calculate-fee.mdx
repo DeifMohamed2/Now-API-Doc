@@ -1,7 +1,7 @@
 ---
-title: "POST /pickups/calculate-fee — Preview Pickup Fee"
-sidebarTitle: "POST /calculate-fee"
-description: "Preview the pickup fee before scheduling. Pass numberOfOrders to get an accurate estimate. Returns EGP amount — never send this in pickup create requests."
+title: "Calculate Pickup Fee — POST /pickups/calculate-fee"
+sidebarTitle: "Calculate Fee"
+description: "Preview the pickup fee before scheduling. Pass numberOfOrders for an accurate EGP estimate. Never send the returned fee in create or update requests."
 ---
 
 Use this endpoint to preview the pickup fee before you commit to scheduling a courier pickup. The fee is computed server-side based on your account's pricing configuration and the expected number of orders. Use the returned value for display purposes only — **never pass fee values back in `POST /pickups` or `PUT /pickups/{pickupNumber}`**.

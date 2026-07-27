@@ -1,7 +1,7 @@
 ---
-title: "Authenticate with Now Shipping API"
+title: "Now Shipping API Authentication and API Keys Guide"
 sidebarTitle: "Authentication"
-description: "All Now Shipping API requests require a valid API key. Pass it as a Bearer token or X-Api-Key header on every call."
+description: "Every Now Shipping API request requires a valid API key. Pass it as a Bearer token or X-Api-Key header, and verify it using GET /ping."
 ---
 
 Every request to the Now Shipping Public API must carry a valid API key. The key identifies your integration, enforces rate limits, and controls which endpoint groups you can access through scopes. The only exceptions are the interactive reference pages — `GET /api/public/v1/docs` and `GET /api/public/v1/openapi.yaml` — which are publicly accessible without a key.
@@ -10,7 +10,7 @@ Every request to the Now Shipping Public API must carry a valid API key. The key
 
 All API keys follow the format:
 
-```
+```text
 nsk_live_<random_string>
 ```
 

@@ -1,7 +1,7 @@
 ---
-title: "GET /pickups/{pickupNumber} — Get Pickup Details"
-sidebarTitle: "GET /pickups/{n}"
-description: "Retrieve full pickup details by pickup number, including status, scheduled date, fees, and linked pickup address information."
+title: "Retrieve Pickup Details — GET /pickups/{pickupNumber}"
+sidebarTitle: "Get Pickup"
+description: "Retrieve full pickup details by pickup number, including status, fees, and the linked pickup address the courier will visit on the scheduled date."
 ---
 
 Use this endpoint to retrieve the complete details of a single pickup by its `pickupNumber`. The response includes the full pickup object along with the `selectedPickupAddress` block, giving you the exact address the courier will visit. You receive the `pickupNumber` in the response of [`POST /pickups`](/api/pickups/create).
@@ -53,7 +53,7 @@ A successful request returns HTTP `200` with the full pickup object and the link
       Scheduled pickup date in `YYYY-MM-DD` format.
     </ResponseField>
     <ResponseField name="picikupStatus" type="string">
-      Current pickup status string (e.g. `new`, `pendingPickup`). Note the field name is `picikupStatus` as returned by the API.
+      Current pickup status string (e.g. `new`, `pendingPickup`). Note: the field name is `picikupStatus` as returned by the API.
     </ResponseField>
     <ResponseField name="statusCategory" type="string">
       Status category for grouping.
@@ -70,6 +70,12 @@ A successful request returns HTTP `200` with the full pickup object and the link
     <ResponseField name="phoneNumber" type="string">
       Courier contact phone number.
     </ResponseField>
+    <ResponseField name="pickupLocation" type="string">
+      Pickup location text displayed to the courier.
+    </ResponseField>
+    <ResponseField name="pickupAddressId" type="string">
+      The linked merchant pickup address ID.
+    </ResponseField>
     <ResponseField name="isFragileItems" type="boolean">
       Whether fragile items were flagged on this pickup.
     </ResponseField>
@@ -85,25 +91,24 @@ A successful request returns HTTP `200` with the full pickup object and the link
     <ResponseField name="updatedAt" type="string">
       ISO 8601 timestamp of the most recent update.
     </ResponseField>
-  </Expandable>
-</ResponseField>
-
-<ResponseField name="data.pickup.selectedPickupAddress" type="object">
-  <Expandable title="selectedPickupAddress fields">
-    <ResponseField name="city" type="string">
-      Governorate of the pickup address (e.g. `Cairo`).
-    </ResponseField>
-    <ResponseField name="zone" type="string">
-      Exact zone value from the delivery zone catalog.
-    </ResponseField>
-    <ResponseField name="addressDetails" type="string">
-      Street, building, and floor details.
-    </ResponseField>
-    <ResponseField name="pickupPhone" type="string">
-      Phone number associated with the pickup address.
-    </ResponseField>
-    <ResponseField name="nearbyLandmark" type="string">
-      Optional landmark to help the courier locate the address.
+    <ResponseField name="selectedPickupAddress" type="object">
+      <Expandable title="selectedPickupAddress fields">
+        <ResponseField name="city" type="string">
+          Governorate of the pickup address (e.g. `Cairo`).
+        </ResponseField>
+        <ResponseField name="zone" type="string">
+          Exact zone value from the delivery zone catalog.
+        </ResponseField>
+        <ResponseField name="addressDetails" type="string">
+          Street, building, and floor details.
+        </ResponseField>
+        <ResponseField name="pickupPhone" type="string">
+          Phone number associated with the pickup address.
+        </ResponseField>
+        <ResponseField name="nearbyLandmark" type="string">
+          Optional landmark to help the courier locate the address.
+        </ResponseField>
+      </Expandable>
     </ResponseField>
   </Expandable>
 </ResponseField>
@@ -122,6 +127,8 @@ A successful request returns HTTP `200` with the full pickup object and the link
       "numberOfOrders": 15,
       "pickupFees": 50,
       "phoneNumber": "01012345678",
+      "pickupLocation": "12 Street, Building 4, Cairo",
+      "pickupAddressId": "66f1a2b3c4d5e6f7a8b9c0d4",
       "isFragileItems": false,
       "isLargeItems": false,
       "pickupNotes": "Call before arrival",
